@@ -7,4 +7,4 @@ resources:
 
 images:
   - name: jenkins/jenkins
-    digest: sha256:7bbcfec5521798ab2dbd7e4bdf00cbcf2941fa4c856722d36d4df6c30678d8a7
+    digest: sha256:d8948128362627cbbe868be79d7d2427a1a153c3062bf6a528652d80de4dbcf301df24

@@ -39,3 +39,12 @@
         ├── version-update -> Avoid compatibility errors with plugin updates on older Jenkins baseline versions
         └── affected files:
             └── deploy/kubernetes/base/deployment.yaml (Updated)
+
+[2026-07-14T11:26:50+05:30] Upgraded Jenkins from Java 17 to Java 21 baseline
+└── File: logs/change.log
+    ├── Choice: Update image from jenkins/jenkins:lts-jdk17 to jenkins/jenkins:lts-jdk21, and pin JDK 21 digest in prod overlay
+    └── Changes:
+        ├── jdk-upgrade -> Address Java 17 deprecation / End-of-Life plan in Jenkins and switch to Java 21 runtime
+        └── affected files:
+            ├── deploy/kubernetes/base/deployment.yaml (Updated)
+            └── deploy/kubernetes/overlays/prod/kustomization.yaml (Updated)
