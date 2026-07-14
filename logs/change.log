@@ -48,3 +48,12 @@
         └── affected files:
             ├── deploy/kubernetes/base/deployment.yaml (Updated)
             └── deploy/kubernetes/overlays/prod/kustomization.yaml (Updated)
+
+[2026-07-14T11:28:40+05:30] Pinned Jenkins version to secure LTS release 2.568.1-jdk21
+└── File: logs/change.log
+    ├── Choice: Pin exact image version 2.568.1-jdk21 in base deployment, and update pinned digest to sha256:f4f65e6cd1405cd889b7f5ac33f9d5cdc2a099de6b87fe8a3933b9c5d53d1d02 in prod overlay
+    └── Changes:
+        ├── security-pin -> Upgrade to Jenkins 2.568.1 to resolve multiple security vulnerabilities present in versions 2.567 and earlier (LTS 2.555.2 and earlier)
+        └── affected files:
+            ├── deploy/kubernetes/base/deployment.yaml (Updated)
+            └── deploy/kubernetes/overlays/prod/kustomization.yaml (Updated)

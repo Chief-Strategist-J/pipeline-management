@@ -20,7 +20,7 @@ spec:
       serviceAccountName: jenkins-admin
       containers:
         - name: jenkins
-          image: jenkins/jenkins:lts-jdk21
+          image: jenkins/jenkins:2.568.1-jdk21
           ports:
             - containerPort: 8080
               name: httpport
