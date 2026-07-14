@@ -11,3 +11,23 @@
             ├── k8s/jenkins/service.yaml (New)
             ├── k8s/jenkins/README.md (New)
             └── Jenkinsfile (New)
+
+[2026-07-14T11:06:30+05:30] Refactored Jenkins Kubernetes manifests to match folder structure guidelines
+└── File: logs/change.log
+    ├── Choice: Restructure directories to deploy/kubernetes/base and overlays/ and apply Stage 3+ rules (probes, limits, nonRoot, network-policies, pdb, HPA, pinned sha256)
+    └── Changes:
+        ├── folder-structure-alignment -> Moved manifests from k8s/jenkins/ to deploy/kubernetes/base/ and deploy/kubernetes/overlays/
+        └── rule-compliance -> Added readiness/liveness probes, resources requests/limits, runAsNonRoot context, network policies, PDB, and production HPA/image pin
+        └── affected files:
+            ├── deploy/kubernetes/README.md (New)
+            ├── deploy/kubernetes/base/namespace.yaml (Moved/Updated)
+            ├── deploy/kubernetes/base/volume.yaml (Moved/Updated)
+            ├── deploy/kubernetes/base/service-account.yaml (Moved/Updated)
+            ├── deploy/kubernetes/base/deployment.yaml (Moved/Updated)
+            ├── deploy/kubernetes/base/service.yaml (Moved/Updated)
+            ├── deploy/kubernetes/base/network-policy.yaml (New)
+            ├── deploy/kubernetes/base/pdb.yaml (New)
+            ├── deploy/kubernetes/base/kustomization.yaml (New)
+            ├── deploy/kubernetes/overlays/dev/kustomization.yaml (New)
+            ├── deploy/kubernetes/overlays/prod/hpa.yaml (New)
+            └── deploy/kubernetes/overlays/prod/kustomization.yaml (New)

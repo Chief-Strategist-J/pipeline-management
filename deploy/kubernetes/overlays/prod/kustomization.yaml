@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - hpa.yaml
+
+images:
+  - name: jenkins/jenkins
+    digest: sha256:7bbcfec5521798ab2dbd7e4bdf00cbcf2941fa4c856722d36d4df6c30678d8a7

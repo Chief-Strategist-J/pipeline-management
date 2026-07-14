@@ -13,15 +13,38 @@ spec:
       labels:
         app: jenkins-server
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       serviceAccountName: jenkins-admin
       containers:
         - name: jenkins
-          image: jenkins/jenkins:lts
+          image: jenkins/jenkins:2.452.2-lts-jdk17
           ports:
             - containerPort: 8080
               name: httpport
             - containerPort: 50000
               name: jnlpport
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
           volumeMounts:
             - name: jenkins-data
               mountPath: /var/jenkins_home
