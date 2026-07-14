@@ -31,3 +31,11 @@
             ├── deploy/kubernetes/overlays/dev/kustomization.yaml (New)
             ├── deploy/kubernetes/overlays/prod/hpa.yaml (New)
             └── deploy/kubernetes/overlays/prod/kustomization.yaml (New)
+
+[2026-07-14T11:16:40+05:30] Updated Jenkins image tag to resolve plugin version mismatch
+└── File: logs/change.log
+    ├── Choice: Update image from jenkins/jenkins:2.452.2-lts-jdk17 to jenkins/jenkins:lts-jdk17
+    └── Changes:
+        ├── version-update -> Avoid compatibility errors with plugin updates on older Jenkins baseline versions
+        └── affected files:
+            └── deploy/kubernetes/base/deployment.yaml (Updated)
