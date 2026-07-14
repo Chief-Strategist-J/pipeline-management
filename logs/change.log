@@ -1,0 +1,13 @@
+[2026-07-14T11:05:00+05:30] Added Jenkins Kubernetes setup and pipeline configuration
+└── File: logs/change.log
+    ├── Choice: Implement Kubernetes-native Jenkins deployment manifests and root Jenkinsfile
+    └── Changes:
+        ├── jenkins-k8s-setup -> Added namespace, PVC volume, RBAC service-account, deployment, and service manifests
+        └── affected files:
+            ├── k8s/jenkins/namespace.yaml (New)
+            ├── k8s/jenkins/volume.yaml (New)
+            ├── k8s/jenkins/service-account.yaml (New)
+            ├── k8s/jenkins/deployment.yaml (New)
+            ├── k8s/jenkins/service.yaml (New)
+            ├── k8s/jenkins/README.md (New)
+            └── Jenkinsfile (New)
