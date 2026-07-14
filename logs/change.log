@@ -57,3 +57,11 @@
         └── affected files:
             ├── deploy/kubernetes/base/deployment.yaml (Updated)
             └── deploy/kubernetes/overlays/prod/kustomization.yaml (Updated)
+
+[2026-07-14T12:29:50+05:30] Updated Kubernetes documentation in README
+└── File: logs/change.log
+    ├── Choice: Add detailed architectural explanation and Mermaid flow diagram of the Kubernetes-native Jenkins setup in deploy/kubernetes/README.md
+    └── Changes:
+        ├── documentation -> Expanded K8s README to cover namespace, storage (PVC), security (RBAC, NetworkPolicy), and Kustomize overlays details
+        └── affected files:
+            └── deploy/kubernetes/README.md (Updated)
