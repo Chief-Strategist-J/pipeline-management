@@ -10,6 +10,7 @@ This repository contains Kubernetes-native Jenkins pipeline configurations, infr
 * [infra-gateway/](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/) — Centralized reverse proxy configuration, routing policies, and the CLI compiler tool.
 * [Load Balancing & Domains Docs](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/architecture/load-balancing-and-domains.md) — Math formulas for distribution models (Round Robin, Least Connections, IP Hash) and DNS strategies.
 * [Kubernetes Networking & Services Docs](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/architecture/kubernetes-networking-and-services.md) — Architectural overview of K8s CNI, ClusterIP, kube-proxy iptables/IPVS distribution, and NetworkPolicies.
+* [Upcoming Features Matrix](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/architecture/upcoming-roadmap-matrix.md) — Detailed matrix of 25 critical security, routing, and AI-deployment automation features.
 * [policies/](file:///home/btpl-lap-22/live/pipeline-management/policies/) — Architecture policies, folder structure rules, and deployment non-negotiables.
 * [Jenkinsfile](file:///home/btpl-lap-22/live/pipeline-management/Jenkinsfile) — Root Jenkins declarative pipeline for building and testing applications.
 
