@@ -1,0 +1,5 @@
+# Default limits if no specific tier matches
+rps: 10
+burst: 20
+nodelay: false
+conn_limit: 5

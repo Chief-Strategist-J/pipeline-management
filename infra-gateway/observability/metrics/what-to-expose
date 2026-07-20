@@ -1,0 +1,17 @@
+# Gateway Metrics to Expose (Prometheus)
+metrics:
+  - name: gateway_requests_total
+    type: counter
+    labels: [method, route, status, upstream]
+    desc: "Total number of HTTP requests processed by the gateway"
+
+  - name: gateway_request_duration_seconds
+    type: histogram
+    labels: [method, route, status, upstream]
+    buckets: [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1.0, 2.5, 5.0, 10.0]
+    desc: "HTTP request latency in seconds"
+
+  - name: gateway_active_connections
+    type: gauge
+    labels: [state]
+    desc: "Active downstream client connections (reading, writing, waiting)"

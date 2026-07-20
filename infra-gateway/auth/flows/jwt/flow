@@ -1,0 +1,9 @@
+# JWT Authentication Flow Configuration
+token_source: Header ("Authorization: Bearer <token>")
+verification:
+  jwks_uri: "https://auth.example.com/.well-known/jwks.json"
+  cache_ttl: 24h
+claims_mapping:
+  sub: "X-User-ID"
+  roles: "X-User-Roles"
+  tenant: "X-Tenant-ID"

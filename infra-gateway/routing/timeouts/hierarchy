@@ -1,0 +1,6 @@
+# Timeout Hierarchy Policy
+# Every hop must be smaller than its caller (gateway > service > downstream DB/RPC)
+gateway_timeout: 30s
+proxy_connect_timeout: 5s
+proxy_send_timeout: 10s
+proxy_read_timeout: 15s

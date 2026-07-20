@@ -1,0 +1,17 @@
+# Structured Access Log Format (JSON)
+format: >-
+  {
+    "timestamp": "$time_iso8601",
+    "request_id": "$http_x_request_id",
+    "client_ip": "$remote_addr",
+    "method": "$request_method",
+    "uri": "$request_uri",
+    "status": "$status",
+    "bytes_sent": "$body_bytes_sent",
+    "referer": "$http_referer",
+    "user_agent": "$http_user_agent",
+    "upstream_host": "$upstream_addr",
+    "upstream_status": "$upstream_status",
+    "request_time": "$request_time",
+    "upstream_response_time": "$upstream_response_time"
+  }

@@ -1,0 +1,5 @@
+# Rate limit zone per path / route targeting expensive endpoints
+name: route_limit_zone
+key: "$request_uri"
+size: "10m"
+rate: "50r/s"

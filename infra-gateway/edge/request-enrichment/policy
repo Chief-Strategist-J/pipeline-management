@@ -1,0 +1,5 @@
+# Request Enrichment Policy
+inject_headers:
+  X-Request-ID: "$request_id"
+  X-Client-IP: "$remote_addr"
+  X-Gateway-Received: "$time_iso8601"

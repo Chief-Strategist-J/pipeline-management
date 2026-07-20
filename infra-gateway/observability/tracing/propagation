@@ -1,0 +1,9 @@
+# Distributed Tracing Propagation Policy
+standard: W3C Trace Context
+headers:
+  - traceparent
+  - tracestate
+
+behavior:
+  - If incoming request contains traceparent: propagate and attach trace spans.
+  - If incoming request lacks traceparent: generate new traceparent, start trace root, and forward downstream.

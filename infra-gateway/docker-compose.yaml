@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Mock Backend Services
+  user-service:
+    image: hashicorp/http-echo:latest
+    command: -text="[BACKEND] Hello from user-service"
+    ports:
+      - "8081:5678"
+
+  product-service:
+    image: hashicorp/http-echo:latest
+    command: -text="[BACKEND] Hello from product-service"
+    ports:
+      - "8082:5678"
+
+  order-service:
+    image: hashicorp/http-echo:latest
+    command: -text="[BACKEND] Hello from order-service"
+    ports:
+      - "8083:5678"
+
+  # Nginx Gateway Instance
+  nginx-gateway:
+    image: nginxinc/nginx-unprivileged:stable-alpine
+    ports:
+      - "8443:443"
+    volumes:
+      - ./runtime-adapters/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs/api.example.com.crt:/etc/ssl/certs/api.example.com.crt:ro
+      - ./certs/api.example.com.key:/etc/ssl/private/api.example.com.key:ro
+    depends_on:
+      - user-service
+      - product-service
+      - order-service
+
+  # Traefik Gateway Instance
+  traefik-gateway:
+    image: traefik:v3.0
+    command:
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--entrypoints.websecure.address=:8443"
+    ports:
+      - "9443:8443"
+    volumes:
+      - ./runtime-adapters/traefik/traefik.yaml:/etc/traefik/dynamic/traefik.yaml:ro
+      - ./certs/api.example.com.crt:/etc/ssl/certs/api.example.com.crt:ro
+      - ./certs/api.example.com.key:/etc/ssl/private/api.example.com.key:ro
+    depends_on:
+      - user-service
+      - product-service
+      - order-service

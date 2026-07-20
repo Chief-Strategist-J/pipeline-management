@@ -1,0 +1,6 @@
+# Exclude certs from version control
+infra-gateway/certs/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store

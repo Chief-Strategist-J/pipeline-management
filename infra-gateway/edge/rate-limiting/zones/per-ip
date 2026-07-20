@@ -1,0 +1,5 @@
+# Rate limit zone by IP address to protect against brute force/DoS
+name: ip_limit_zone
+key: "$binary_remote_addr"
+size: "10m"
+rate: "10r/s"

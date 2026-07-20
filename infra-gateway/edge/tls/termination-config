@@ -1,0 +1,16 @@
+# TLS Termination Configuration Source of Truth
+
+ssl_protocols:
+  - TLSv1.2
+  - TLSv1.3
+
+ssl_ciphers: ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+
+hsts:
+  enabled: true
+  max_age: 31536000
+  include_subdomains: true
+  preload: true
+
+session_tickets: false
+session_timeout: 1d

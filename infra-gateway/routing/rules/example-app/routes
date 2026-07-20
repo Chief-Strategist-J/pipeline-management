@@ -1,0 +1,17 @@
+# Path Routing Rules for example-app domain
+domain: "api.example.com"
+routes:
+  - path: "/v1/users"
+    upstream: "user-service"
+    methods: [GET, POST, PUT, DELETE]
+    auth_required: true
+
+  - path: "/v1/products"
+    upstream: "product-service"
+    methods: [GET]
+    auth_required: false
+
+  - path: "/v1/orders"
+    upstream: "order-service"
+    methods: [GET, POST]
+    auth_required: true

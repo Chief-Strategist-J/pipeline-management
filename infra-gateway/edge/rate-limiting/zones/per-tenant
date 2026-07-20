@@ -1,0 +1,5 @@
+# Rate limit zone by tenant ID to prevent a single customer from degrading performance
+name: tenant_limit_zone
+key: "$http_x_tenant_id"
+size: "10m"
+rate: "100r/s"

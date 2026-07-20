@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-nginx
+  namespace: gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway-nginx
+  template:
+    metadata:
+      labels:
+        app: gateway-nginx
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101 # nginx default non-root user in some official images, or standard 1000
+        fsGroup: 101
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:stable-alpine
+          ports:
+            - containerPort: 8443
+              name: https
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            tcpSocket:
+              port: 8443
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8443
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: config-volume
+          configMap:
+            name: nginx-gateway-config

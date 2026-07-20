@@ -1,0 +1,7 @@
+# Active Health Check Configuration
+endpoint: "/healthz"
+port: 8081
+interval: 10s
+timeout: 2s
+unhealthy_threshold: 3
+healthy_threshold: 2
