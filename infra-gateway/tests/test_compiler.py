@@ -5,9 +5,11 @@ import sys
 import shutil
 import tempfile
 
-# Add runtime-adapters directory to path to import compiler
+# Add runtime-adapters directory to path to import adapters
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../runtime-adapters')))
-import compiler
+from adapters.nginx_adapter import NginxAdapter
+from adapters.apache_adapter import ApacheAdapter
+from adapters.traefik_adapter import TraefikAdapter
 
 class TestGatewayCompiler(unittest.TestCase):
     def setUp(self):
@@ -40,14 +42,16 @@ class TestGatewayCompiler(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def test_parse_yaml(self):
-        data = compiler.parse_simple_yaml(os.path.join(self.test_dir, "edge/tls/termination-config"))
+        adapter = NginxAdapter()
+        data = adapter.parse_yaml(os.path.join(self.test_dir, "edge/tls/termination-config"))
         self.assertEqual(data.get("ssl_ciphers"), "HIGH")
         self.assertIn("TLSv1.3", data.get("ssl_protocols", []))
 
     def test_nginx_generation(self):
+        adapter = NginxAdapter()
         output_dir = tempfile.mkdtemp()
         try:
-            compiler.generate_nginx(self.test_dir, output_dir)
+            adapter.generate(self.test_dir, output_dir)
             nginx_conf = os.path.join(output_dir, "nginx/nginx.conf")
             self.assertTrue(os.path.exists(nginx_conf))
             with open(nginx_conf, 'r') as f:
@@ -58,9 +62,10 @@ class TestGatewayCompiler(unittest.TestCase):
             shutil.rmtree(output_dir)
 
     def test_apache_generation(self):
+        adapter = ApacheAdapter()
         output_dir = tempfile.mkdtemp()
         try:
-            compiler.generate_apache(self.test_dir, output_dir)
+            adapter.generate(self.test_dir, output_dir)
             httpd_conf = os.path.join(output_dir, "apache/httpd.conf")
             self.assertTrue(os.path.exists(httpd_conf))
             with open(httpd_conf, 'r') as f:
@@ -71,9 +76,10 @@ class TestGatewayCompiler(unittest.TestCase):
             shutil.rmtree(output_dir)
 
     def test_traefik_generation(self):
+        adapter = TraefikAdapter()
         output_dir = tempfile.mkdtemp()
         try:
-            compiler.generate_traefik(self.test_dir, output_dir)
+            adapter.generate(self.test_dir, output_dir)
             traefik_yaml = os.path.join(output_dir, "traefik/traefik.yaml")
             self.assertTrue(os.path.exists(traefik_yaml))
             with open(traefik_yaml, 'r') as f:
