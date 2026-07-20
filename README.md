@@ -26,31 +26,48 @@ The repository provides a centralized CLI tool to define routing, TLS, security 
 
 ---
 
+## 💡 What You Can Do with the Gateway CLI
+
+1. **Deploy Frontend & Backend Apps Instantly**: Map new domains (e.g. `xyz.com`) to Python FastAPI, React, Node, or static HTML servers by adding simple YAML definitions.
+2. **Compile Production Configurations**: Generate complex, secure reverse proxy configurations with upstreams, load-balancing pools, SSL setups, and security headers.
+3. **Execute Zero-Downtime Hot-Reloads**: Start the file watcher daemon (`gateway-cli watch`) to automatically compile and gracefully reload proxy workers in the background without dropping active user connections.
+4. **Enforce Edge DDoS Mitigation**: Protect backend servers with rate limiting (`limit_req_zone` / `rateLimit`) and secure HTTP response headers.
+5. **Propagate Distributed Tracing**: Track requests across microservices using W3C standard OpenTelemetry `traceparent` headers injected at the gateway.
+
+---
+
 ## 🛠️ How to Use the Gateway CLI
 
-### 1. Compile Proxy Configurations
-Run the compiler tool from the `infra-gateway/runtime-adapters/` directory:
+### 1. Installation
+To install the CLI tool locally in developer mode:
 ```bash
-# Generate configs for Nginx, Apache, and Traefik
-python3 infra-gateway/runtime-adapters/compiler.py --proxy all
-
-# Generate configs for a single proxy only
-python3 infra-gateway/runtime-adapters/compiler.py --proxy nginx
-python3 infra-gateway/runtime-adapters/compiler.py --proxy traefik
-python3 infra-gateway/runtime-adapters/compiler.py --proxy apache
+pip install -e infra-gateway/
 ```
 
-### 2. Defining New Routes
-To deploy a new path or microservice:
-1. Open the routes config: [routing/rules/example-app/routes](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/routing/rules/example-app/routes).
-2. Append your new routing rules:
-   ```yaml
-     - path: "/v1/new-service"
-       upstream: "new-service"
-       methods: [GET, POST]
-       auth_required: true
-   ```
-3. Run the compiler command above.
+### 2. CLI Command Reference
+```bash
+# Compile abstract config rules to target proxy config files
+gateway-cli compile --proxy all
+
+# Watch routing rules for changes and trigger auto reloads dynamically
+gateway-cli watch
+
+# Manually trigger a graceful config reload across proxy containers
+gateway-cli reload
+```
+
+---
+
+## 🗺️ Upcoming Critical Features (Roadmap)
+
+The next major releases will focus on protocol development and dynamic workload execution:
+
+| Feature Name | Priority | Category | Description |
+| :--- | :--- | :--- | :--- |
+| **AI Agent Deployment Protocol** | **Critical** | Workload Automation | Dynamically generate and execute mini-scripts to deploy autonomous AI agents on target nodes triggered via secure domain/URL webhook endpoints. |
+| **Envoy & Caddy Runtime Adapters** | High | CLI Extensibility | Expand the compiler to generate configs for Envoy and Caddy proxy adaptors. |
+| **Dynamic WAF ModSecurity Engine** | Medium | Security | Integrate Web Application Firewall (WAF) deep packet inspection at Layer 7. |
+| **L7 Circuit Breaker Dashboard** | Medium | Observability | Visual dashboard displaying tripped circuits and real-time backend health statuses. |
 
 ---
 
