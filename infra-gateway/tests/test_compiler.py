@@ -5,11 +5,11 @@ import sys
 import shutil
 import tempfile
 
-# Add runtime-adapters directory to path to import adapters
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../runtime-adapters')))
-from adapters.nginx_adapter import NginxAdapter
-from adapters.apache_adapter import ApacheAdapter
-from adapters.traefik_adapter import TraefikAdapter
+# Add src directory to path to import gateway_cli
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+from gateway_cli.adapters.nginx_adapter import NginxAdapter
+from gateway_cli.adapters.apache_adapter import ApacheAdapter
+from gateway_cli.adapters.traefik_adapter import TraefikAdapter
 
 class TestGatewayCompiler(unittest.TestCase):
     def setUp(self):

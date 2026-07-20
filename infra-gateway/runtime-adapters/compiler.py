@@ -1,30 +1,19 @@
 #!/usr/bin/env python3
 import os
-import argparse
+import sys
 
-from adapters.nginx_adapter import NginxAdapter
-from adapters.apache_adapter import ApacheAdapter
-from adapters.traefik_adapter import TraefikAdapter
-
-def main():
-    parser = argparse.ArgumentParser(description="Compile abstract gateway routing configuration to proxy files.")
-    parser.add_argument("--proxy", choices=["nginx", "apache", "traefik", "all"], default="all", help="Target proxy configuration to generate")
-    args = parser.parse_args()
-    
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    base_dir = os.path.dirname(current_dir)
-    
-    adapters = {
-        "nginx": NginxAdapter(),
-        "apache": ApacheAdapter(),
-        "traefik": TraefikAdapter()
-    }
-    
-    if args.proxy == "all":
-        for name, adapter in adapters.items():
-            adapter.generate(base_dir, current_dir)
-    else:
-        adapters[args.proxy].generate(base_dir, current_dir)
+# Compatibility wrapper for compiler.py pointing to new gateway_cli package
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+from gateway_cli.main import main
 
 if __name__ == "__main__":
+    # Simulate the compile command format for legacy callers
+    if len(sys.argv) == 1:
+        sys.argv.extend(["compile", "--proxy", "all"])
+    elif "--proxy" in sys.argv:
+        proxy_idx = sys.argv.index("--proxy")
+        if proxy_idx + 1 < len(sys.argv):
+            target = sys.argv[proxy_idx + 1]
+            sys.argv = [sys.argv[0], "compile", "--proxy", target]
+            
     main()

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gateway-cli"
+version = "1.0.0"
+description = "CLI tool to compile abstract gateway policies and manage Nginx, Apache, and Traefik instances."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pyyaml>=6.0"
+]
+
+[project.scripts]
+gateway-cli = "gateway_cli.main:main"
