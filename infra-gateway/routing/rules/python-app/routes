@@ -1,0 +1,7 @@
+# Routing Rules for Python API Backend Application
+domain: "api.xyz.com"
+routes:
+  - path: "/api"
+    upstream: "python-service"
+    methods: [GET, POST, PUT, DELETE, OPTIONS]
+    auth_required: true

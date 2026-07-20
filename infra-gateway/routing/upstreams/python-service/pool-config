@@ -1,0 +1,9 @@
+# Upstream pool configuration for python-service backend
+targets:
+  - "10.244.10.1:8000" # Python app typically runs on port 8000 (FastAPI / Flask / Django)
+
+load_balancing: round_robin
+
+keepalive:
+  connections: 16
+  timeout: 60s

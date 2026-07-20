@@ -49,6 +49,24 @@ http:
       rule: Host(`api.example.com`) && PathPrefix(`/v1/users`)
       service: user-service
       tls: {}
+    python-app-python-service-0:
+      entryPoints:
+      - websecure
+      middlewares:
+      - security-headers
+      - request-enrichment
+      rule: Host(`api.xyz.com`) && PathPrefix(`/api`)
+      service: python-service
+      tls: {}
+    react-app-react-service-0:
+      entryPoints:
+      - websecure
+      middlewares:
+      - security-headers
+      - request-enrichment
+      rule: Host(`xyz.com`) && PathPrefix(`/`)
+      service: react-service
+      tls: {}
   services:
     order-service:
       loadBalancer:
@@ -58,6 +76,14 @@ http:
       loadBalancer:
         servers:
         - url: http://product-service:5678
+    python-service:
+      loadBalancer:
+        servers:
+        - url: http://10.244.10.1:8000
+    react-service:
+      loadBalancer:
+        servers:
+        - url: http://10.244.20.1:3000
     user-service:
       loadBalancer:
         servers:

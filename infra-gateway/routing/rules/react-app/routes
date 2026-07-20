@@ -1,0 +1,7 @@
+# Routing Rules for React Frontend Application
+domain: "xyz.com"
+routes:
+  - path: "/"
+    upstream: "react-service"
+    methods: [GET]
+    auth_required: false
