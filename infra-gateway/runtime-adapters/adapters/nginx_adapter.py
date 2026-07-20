@@ -74,14 +74,22 @@ class NginxAdapter(ProxyAdapter):
                 upstream_data = self.parse_yaml(upstream_file)
                 targets = upstream_data.get("targets", [])
                 
-                # Format upstream block
+                # Read Circuit Breaker settings from Health Checks if available
+                health_file = os.path.join(base_dir, "routing/health-checks", upstream, "config")
+                health_data = self.parse_yaml(health_file)
+                unhealthy_threshold = health_data.get("unhealthy_threshold", 3)
+                timeout = health_data.get("timeout", "10s")
+                if isinstance(timeout, int):
+                    timeout = f"{timeout}s"
+                
+                # Format upstream block with Circuit Breaking parameters
                 upstream_name = f"{upstream}_pool"
                 upstream_definition = [
                     f"upstream {upstream_name} {{",
                     f"    zone {upstream}_backend 64k;"
                 ]
                 for target in targets:
-                    upstream_definition.append(f"    server {target};")
+                    upstream_definition.append(f"    server {target} max_fails={unhealthy_threshold} fail_timeout={timeout};")
                 upstream_definition.append(f"}}")
                 
                 upstreams.append("\n".join(upstream_definition))
@@ -94,6 +102,13 @@ class NginxAdapter(ProxyAdapter):
                 vhost_content.append(f"        proxy_set_header X-Real-IP $remote_addr;")
                 vhost_content.append(f"        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;")
                 vhost_content.append(f"        proxy_set_header X-Forwarded-Proto $scheme;")
+                vhost_content.append(f"")
+                vhost_content.append(f"        # W3C Distributed Tracing propagation")
+                vhost_content.append(f"        proxy_set_header traceparent $http_traceparent;")
+                vhost_content.append(f"        proxy_set_header tracestate $http_tracestate;")
+                vhost_content.append(f"")
+                vhost_content.append(f"        # DDoS Mitigation & Rate Limiting")
+                vhost_content.append(f"        limit_req zone=ip_limit_zone burst=20 nodelay;")
                 
                 if auth_req:
                     vhost_content.append(f"        # Auth required - gateway validation placeholder")
@@ -113,6 +128,8 @@ class NginxAdapter(ProxyAdapter):
             f.write("http {\n")
             f.write("    include mime.types;\n")
             f.write("    default_type application/octet-stream;\n\n")
+            f.write("    # Edge DDoS Protection: Rate Limit Zones\n")
+            f.write("    limit_req_zone $binary_remote_addr zone=ip_limit_zone:10m rate=10r/s;\n\n")
             f.write("    # Upstreams\n")
             f.write("\n\n".join(upstreams))
             f.write("\n\n    # Virtual Servers / Virtual Hosts\n")

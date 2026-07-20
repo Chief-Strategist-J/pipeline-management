@@ -40,6 +40,12 @@ class TraefikAdapter(ProxyAdapter):
                         "headers": {
                             "customRequestHeaders": enrichment_config.get("inject_headers", {})
                         }
+                    },
+                    "ddos-rate-limit": {
+                        "rateLimit": {
+                            "average": 10,
+                            "burst": 20
+                        }
                     }
                 }
             }
@@ -74,7 +80,7 @@ class TraefikAdapter(ProxyAdapter):
                     "rule": f"Host(`{domain}`) && PathPrefix(`{path}`)",
                     "service": upstream,
                     "entryPoints": ["websecure"],
-                    "middlewares": ["security-headers", "request-enrichment"],
+                    "middlewares": ["security-headers", "request-enrichment", "ddos-rate-limit"],
                     "tls": {}
                 }
                 
@@ -83,10 +89,18 @@ class TraefikAdapter(ProxyAdapter):
                 upstream_data = self.parse_yaml(upstream_file)
                 targets = upstream_data.get("targets", [])
                 
-                # Traefik Service
+                # Traefik Service with Circuit Breaking & Health Check parameters
                 traefik_dynamic["http"]["services"][upstream] = {
                     "loadBalancer": {
-                        "servers": [{"url": f"http://{target}"} for target in targets]
+                        "servers": [{"url": f"http://{target}"} for target in targets],
+                        "healthCheck": {
+                            "path": "/healthz",
+                            "interval": "10s",
+                            "timeout": "2s"
+                        },
+                        "circuitBreaker": {
+                            "expression": "NetworkErrorRatio() > 0.30 || ResponseCodeRatio(500, 600, 0, 1) > 0.30"
+                        }
                     }
                 }
                 
