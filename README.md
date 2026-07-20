@@ -6,13 +6,13 @@ This repository contains Kubernetes-native Jenkins pipeline configurations, infr
 
 ## 📂 Project Structure
 
-* [deploy/kubernetes/](file:///home/btpl-lap-22/live/pipeline-management/deploy/kubernetes/) — Production Kustomize manifests for running Jenkins agents and proxy gateways in Kubernetes.
-* [infra-gateway/](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/) — Centralized reverse proxy configuration, routing policies, and the CLI compiler tool.
-* [Load Balancing & Domains Docs](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/architecture/load-balancing-and-domains.md) — Math formulas for distribution models (Round Robin, Least Connections, IP Hash) and DNS strategies.
-* [Kubernetes Networking & Services Docs](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/architecture/kubernetes-networking-and-services.md) — Architectural overview of K8s CNI, ClusterIP, kube-proxy iptables/IPVS distribution, and NetworkPolicies.
-* [Upcoming Features Matrix](file:///home/btpl-lap-22/live/pipeline-management/infra-gateway/architecture/upcoming-roadmap-matrix.md) — Detailed matrix of 25 critical security, routing, and AI-deployment automation features.
-* [policies/](file:///home/btpl-lap-22/live/pipeline-management/policies/) — Architecture policies, folder structure rules, and deployment non-negotiables.
-* [Jenkinsfile](file:///home/btpl-lap-22/live/pipeline-management/Jenkinsfile) — Root Jenkins declarative pipeline for building and testing applications.
+* [deploy/kubernetes/](./deploy/kubernetes/) — Production Kustomize manifests for running Jenkins agents and proxy gateways in Kubernetes.
+* [infra-gateway/](./infra-gateway/) — Centralized reverse proxy configuration, routing policies, and the CLI compiler tool.
+* [Load Balancing & Domains Docs](./infra-gateway/architecture/load-balancing-and-domains.md) — Math formulas for distribution models (Round Robin, Least Connections, IP Hash) and DNS strategies.
+* [Kubernetes Networking & Services Docs](./infra-gateway/architecture/kubernetes-networking-and-services.md) — Architectural overview of K8s CNI, ClusterIP, kube-proxy iptables/IPVS distribution, and NetworkPolicies.
+* [Upcoming Features Matrix](./infra-gateway/architecture/upcoming-roadmap-matrix.md) — Detailed matrix of 25 critical security, routing, and AI-deployment automation features.
+* [policies/](./policies/) — Architecture policies, folder structure rules, and deployment non-negotiables.
+* [Jenkinsfile](./Jenkinsfile) — Root Jenkins declarative pipeline for building and testing applications.
 
 ---
 
