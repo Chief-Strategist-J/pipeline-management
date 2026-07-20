@@ -41,11 +41,15 @@ def generate_nginx(base_dir, output_dir):
             continue
         
         domain = app_data.get("domain", "localhost")
+        virtual_ip = app_data.get("virtual_ip")
         routes = app_data.get("routes", [])
         
         vhost_content = []
         vhost_content.append(f"server {{")
-        vhost_content.append(f"    listen 443 ssl http2;")
+        if virtual_ip:
+            vhost_content.append(f"    listen {virtual_ip}:443 ssl http2;")
+        else:
+            vhost_content.append(f"    listen 443 ssl http2;")
         vhost_content.append(f"    server_name {domain};")
         vhost_content.append(f"")
         vhost_content.append(f"    # SSL Configuration")
@@ -152,10 +156,11 @@ def generate_apache(base_dir, output_dir):
             continue
             
         domain = app_data.get("domain", "localhost")
+        virtual_ip = app_data.get("virtual_ip", "*")
         routes = app_data.get("routes", [])
         
         vhost_content = []
-        vhost_content.append(f"<VirtualHost *:443>")
+        vhost_content.append(f"<VirtualHost {virtual_ip}:443>")
         vhost_content.append(f"    ServerName {domain}")
         vhost_content.append(f"")
         vhost_content.append(f"    # SSL Configuration")
