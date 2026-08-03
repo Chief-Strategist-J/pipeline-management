@@ -123,3 +123,22 @@
             ├── deploy/kubernetes/gateways/traefik/deployment.yaml (New)
             ├── deploy/kubernetes/gateways/traefik/service.yaml (New)
             └── infra-gateway/tests/test_compiler.py (New)
+
+[2026-08-03T14:39:50+05:30] Added Dynamic Sandbox Generator feature with real Docker infrastructure adapter, critical integration tests, and concurrency load testing benchmark
+└── File: logs/change.log
+    ├── Choice: Implement real Docker network/container adapter with JSON state persistence, critical end-to-end integration tests, and 5-worker concurrent load testing script
+    └── Changes:
+        ├── sandbox-generator -> Added OpenAPI v1 contract, domain types, port protocol, Docker adapter, service business logic, CLI sub-commands, state persistence, unit tests, critical Docker tests, and load testing benchmark
+        └── affected files:
+            ├── infra-gateway/contracts/openapi/v1.yaml (New)
+            ├── infra-gateway/src/gateway_cli/features/sandbox_generator/types.py (New)
+            ├── infra-gateway/src/gateway_cli/shared/ports/sandbox_port.py (New)
+            ├── infra-gateway/src/gateway_cli/infra/adapters/docker_sandbox_adapter.py (New)
+            ├── infra-gateway/src/gateway_cli/features/sandbox_generator/service.py (New)
+            ├── infra-gateway/src/gateway_cli/features/sandbox_generator/index.py (New)
+            ├── infra-gateway/src/gateway_cli/commands/sandbox.py (New)
+            ├── infra-gateway/src/gateway_cli/main.py (Updated)
+            ├── infra-gateway/tests/test_sandbox_generator.py (New)
+            ├── infra-gateway/tests/test_critical_docker_sandbox.py (New)
+            └── infra-gateway/tests/load_test_sandbox.py (New)
+

@@ -20,6 +20,20 @@ def main():
     # 3. Reload Command
     parser_reload = subparsers.add_parser("reload", help="Trigger a graceful configuration reload across proxy containers.")
     
+    # 4. Sandbox Command
+    parser_sandbox = subparsers.add_parser("sandbox", help="Manage dynamic sandbox test environments.")
+    sandbox_subparsers = parser_sandbox.add_subparsers(dest="sandbox_action", help="Sandbox actions")
+    
+    sb_create = sandbox_subparsers.add_parser("create", help="Create a new isolated sandbox")
+    sb_create.add_argument("--name", required=True, help="Sandbox environment name")
+    sb_create.add_argument("--no-network", action="store_true", help="Disable isolated network setup")
+    sb_create.add_argument("--mock", help="Comma-separated list of mock dependencies (e.g. redis,postgres)")
+
+    sb_list = sandbox_subparsers.add_parser("list", help="List active sandboxes")
+    
+    sb_destroy = sandbox_subparsers.add_parser("destroy", help="Destroy an isolated sandbox")
+    sb_destroy.add_argument("--sandbox-id", required=True, help="Sandbox ID to destroy")
+
     args = parser.parse_args()
     
     # Locate base paths
@@ -32,6 +46,9 @@ def main():
         run_watch(current_dir)
     elif args.command == "reload":
         run_reload(current_dir)
+    elif args.command == "sandbox":
+        from gateway_cli.commands.sandbox import run_sandbox_command
+        run_sandbox_command(args)
     else:
         parser.print_help()
 

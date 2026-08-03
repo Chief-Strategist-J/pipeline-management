@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: Dynamic Sandbox Generator API
+  description: API contract for provisioning isolated test environments, namespaces, mock dependencies, and isolated networks.
+  version: 1.0.0
+paths:
+  /api/v1/sandboxes:
+    post:
+      summary: Provision a new dynamic sandbox environment
+      operationId: createSandbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSandboxRequest'
+      responses:
+        '201':
+          description: Sandbox provisioned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResponse'
+        '400':
+          description: Invalid sandbox configuration
+        '500':
+          description: Provisioning error
+    get:
+      summary: List all active sandboxes
+      operationId: listSandboxes
+      responses:
+        '200':
+          description: List of active sandboxes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SandboxResponse'
+
+  /api/v1/sandboxes/{sandbox_id}:
+    get:
+      summary: Get details of a sandbox environment
+      operationId: getSandbox
+      parameters:
+        - name: sandbox_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sandbox details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResponse'
+        '404':
+          description: Sandbox not found
+    delete:
+      summary: Destroy an isolated sandbox environment
+      operationId: deleteSandbox
+      parameters:
+        - name: sandbox_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Sandbox destroyed successfully
+        '404':
+          description: Sandbox not found
+
+components:
+  schemas:
+    CreateSandboxRequest:
+      type: object
+      required:
+        - name:
+        - isolated_network
+      properties:
+        name:
+          type: string
+          example: integration-test-env-1
+        isolated_network:
+          type: boolean
+          default: true
+        mock_dependencies:
+          type: array
+          items:
+            type: string
+          example: ["redis", "postgres", "mock-auth"]
+        env_vars:
+          type: object
+          additionalProperties:
+            type: string
+
+    SandboxResponse:
+      type: object
+      required:
+        - sandbox_id
+        - name
+        - status
+        - namespace
+        - created_at
+      properties:
+        sandbox_id:
+          type: string
+          example: sbx-8f92a10
+        name:
+          type: string
+          example: integration-test-env-1
+        status:
+          type: string
+          enum: [provisioning, active, failed, terminated]
+          example: active
+        namespace:
+          type: string
+          example: sandbox-sbx-8f92a10
+        isolated_network:
+          type: boolean
+          example: true
+        mock_dependencies:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
