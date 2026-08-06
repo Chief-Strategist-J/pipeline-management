@@ -36,7 +36,6 @@ http:
       service: order-service
       tls:
         ocspStapling: true
-        ocspStaplingVerify: true
     example-app-product-service-1:
       entryPoints:
       - websecure
@@ -48,7 +47,6 @@ http:
       service: product-service
       tls:
         ocspStapling: true
-        ocspStaplingVerify: true
     example-app-user-service-0:
       entryPoints:
       - websecure
@@ -60,7 +58,6 @@ http:
       service: user-service
       tls:
         ocspStapling: true
-        ocspStaplingVerify: true
     python-app-python-service-0:
       entryPoints:
       - websecure
@@ -72,7 +69,6 @@ http:
       service: python-service
       tls:
         ocspStapling: true
-        ocspStaplingVerify: true
     react-app-react-service-0:
       entryPoints:
       - websecure
@@ -84,7 +80,6 @@ http:
       service: react-service
       tls:
         ocspStapling: true
-        ocspStaplingVerify: true
   services:
     order-service:
       loadBalancer:

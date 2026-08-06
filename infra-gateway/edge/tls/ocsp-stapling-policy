@@ -1,6 +1,6 @@
 ocsp_stapling:
   enabled: true
-  verify: true
+  verify: false
 resolver:
   nameservers:
     - 8.8.8.8
