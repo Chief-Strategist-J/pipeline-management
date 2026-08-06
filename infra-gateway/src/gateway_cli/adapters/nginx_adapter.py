@@ -11,8 +11,8 @@ class NginxAdapter(ProxyAdapter):
         tls_config = self.parse_yaml(os.path.join(base_dir, "edge/tls/termination-config"))
         headers_config = self.parse_yaml(os.path.join(base_dir, "edge/security-headers/policy"))
         enrichment_config = self.parse_yaml(os.path.join(base_dir, "edge/request-enrichment/policy"))
+        ocsp_config = self.parse_yaml(os.path.join(base_dir, "edge/tls/ocsp-stapling-policy"))
         
-        # Read routes
         routes_dir = os.path.join(base_dir, "routing/rules")
         apps = []
         if os.path.exists(routes_dir):
@@ -39,7 +39,6 @@ class NginxAdapter(ProxyAdapter):
                 vhost_content.append(f"    listen 443 ssl http2;")
             vhost_content.append(f"    server_name {domain};")
             vhost_content.append(f"")
-            vhost_content.append(f"    # SSL Configuration")
             vhost_content.append(f"    ssl_certificate /etc/ssl/certs/{domain}.crt;")
             vhost_content.append(f"    ssl_certificate_key /etc/ssl/private/{domain}.key;")
             
@@ -49,14 +48,37 @@ class NginxAdapter(ProxyAdapter):
             vhost_content.append(f"    ssl_ciphers {ssl_ciphers};")
             vhost_content.append(f"    ssl_prefer_server_ciphers on;")
             vhost_content.append(f"")
-            vhost_content.append(f"    # Speed Optimization: SSL Session Resumption & OCSP Stapling")
             vhost_content.append(f"    ssl_session_cache shared:SSL:10m;")
             vhost_content.append(f"    ssl_session_timeout 1d;")
             vhost_content.append(f"    ssl_session_tickets on;")
-            vhost_content.append(f"    ssl_stapling on;")
-            vhost_content.append(f"    ssl_stapling_verify on;")
-            vhost_content.append(f"    resolver 8.8.8.8 8.8.4.4 valid=300s;")
-            vhost_content.append(f"    resolver_timeout 5s;")
+            vhost_content.append(f"")
+            
+            ocsp_stapling = ocsp_config.get("ocsp_stapling", {})
+            if ocsp_stapling.get("enabled", False):
+                vhost_content.append(f"    ssl_stapling on;")
+                if ocsp_stapling.get("verify", False):
+                    vhost_content.append(f"    ssl_stapling_verify on;")
+                
+                resolver_cfg = ocsp_config.get("resolver", {})
+                nameservers = " ".join(resolver_cfg.get("nameservers", ["8.8.8.8", "8.8.4.4"]))
+                valid = resolver_cfg.get("valid_duration", "300s")
+                vhost_content.append(f"    resolver {nameservers} valid={valid};")
+                vhost_content.append(f"    resolver_timeout {resolver_cfg.get('timeout', '5s')};")
+                
+                cache_cfg = ocsp_config.get("cache", {})
+                if cache_cfg.get("type") == "shared":
+                    zone_name = cache_cfg.get("shared_zone_name", "ocsp_cache")
+                    zone_size = cache_cfg.get("shared_zone_size", "10m")
+                    vhost_content.append(f"    ssl_ocsp_cache shared:{zone_name}:{zone_size};")
+                
+                responder_cfg = ocsp_config.get("responder", {})
+                override_url = responder_cfg.get("override_url", "")
+                if override_url:
+                    vhost_content.append(f"    ssl_stapling_responder {override_url};")
+                trusted_cert = responder_cfg.get("trusted_certificate", "")
+                if trusted_cert:
+                    vhost_content.append(f"    ssl_trusted_certificate {trusted_cert};")
+            
             vhost_content.append(f"")
             
             # Security Headers

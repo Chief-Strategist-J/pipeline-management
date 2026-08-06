@@ -9,11 +9,21 @@ This directory defines the structure, policies, and runtime adapters for our edg
 ## Folder Structure
 Conforming to [gateway-folder-structure.md](file:///home/btpl-lap-22/live/pipeline-management/policies/rules/folderStructure/gateway-folder-structure.md):
 - `/architecture`: Routing layer documentation and flowcharts.
-- `/edge`: TLS, rate limiting, security headers, and enrichment.
+- `/edge`: TLS termination, OCSP stapling policies, rate limiting, security headers, and request enrichment.
 - `/routing`: Path matching rules, upstream pool configs, and health checks.
 - `/auth`: Edge auth strategies and token validations.
 - `/observability`: Log formatting, tracing context, and metrics definitions.
 - `/runtime-adapters`: Target-specific configurations (Nginx, Apache, Traefik) compiled from the core definitions.
+
+---
+
+## 🔒 OCSP Stapling Engine (Feature #16)
+
+The OCSP Stapling Engine automatically resolves and caches CA revocation statuses at the proxy edge to reduce client TLS handshake latency.
+
+- **Declarative Policy**: Configured in `edge/tls/ocsp-stapling-policy`
+- **Supported Proxies**: Nginx (`ssl_stapling`, `ssl_ocsp_cache shared:...`), Traefik (`ocspStapling: true`), Apache (`SSLUseStapling On`, `SSLStaplingCache "shmcb:..."`)
+- **Compilation**: Compiled automatically during `python3 runtime-adapters/compiler.py --proxy all`
 
 ---
 
@@ -45,17 +55,17 @@ The routing compiler acts as an automated CLI tool that generates deployment-rea
 ## ⏱️ Time Saved & Developer Efficiency
 
 * **Multi-Proxy Support**: Configure routes once, and run one CLI command to update Nginx, Apache, and Traefik config files automatically.
-* **No Syntax Errors**: The tool generates exact directives for security headers, TLS ciphers, HSTS rules, and location blocks, preventing syntax or runtime startup errors.
-* **Developer Onboarding**: Future developers only need to edit simple YAML files under `routing/rules/` instead of learning Nginx, Apache, or Traefik config syntaxes from scratch.
+* **No Syntax Errors**: The tool generates exact directives for security headers, OCSP stapling, TLS ciphers, HSTS rules, and location blocks, preventing syntax or runtime startup errors.
+* **Developer Onboarding**: Future developers only need to edit simple YAML files under `routing/rules/` and `edge/tls/` instead of learning Nginx, Apache, or Traefik config syntaxes from scratch.
 
 ---
 
 ## 🧪 Testing and Sandbox Environments
 
 ### Running Unit Tests
-Validate the CLI compiler logic:
+Validate the CLI compiler logic and OCSP Stapling engine:
 ```bash
-python3 -m unittest tests/test_compiler.py
+PYTHONPATH=src python3 -m pytest tests/test_ocsp_stapling_engine.py tests/test_compiler.py -v
 ```
 
 ### Running Local Live End-to-End Test Suite
