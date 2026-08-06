@@ -1,20 +1,17 @@
 ocsp_stapling:
   enabled: true
   verify: true
-
 resolver:
   nameservers:
-    - "8.8.8.8"
-    - "8.8.4.4"
-  valid_duration: "300s"
-  timeout: "5s"
-
+    - 8.8.8.8
+    - 8.8.4.4
+  valid_duration: 300s
+  timeout: 5s
 cache:
-  type: "shared"
-  shared_zone_name: "ocsp_cache"
-  shared_zone_size: "10m"
-  file_path: "/var/cache/nginx/ocsp"
-
+  type: shared
+  shared_zone_name: ocsp_cache
+  shared_zone_size: 10m
+  file_path: /var/cache/nginx/ocsp
 responder:
-  override_url: ""
-  trusted_certificate: ""
+  override_url: ''
+  trusted_certificate: ''
