@@ -1,5 +1,6 @@
 import { createEntitySlice } from "./create-entity-slice";
 import { createEntityAdapter, type CrudPort, type EntitySchema } from "./create-entity-adapter";
+import { createEntitySaga } from "./create-entity-sagas";
 import { withTracing, withCircuitBreaker, withCache, withRetry } from "./adapter-decorators";
 
 export function registerEntity<T>(schema: EntitySchema<T>, customAdapter?: CrudPort<T>) {
@@ -8,5 +9,6 @@ export function registerEntity<T>(schema: EntitySchema<T>, customAdapter?: CrudP
     schema.name
   );
   const slice = createEntitySlice<T>(schema.name);
-  return { schema, adapter, slice };
+  const saga = createEntitySaga(slice, adapter);
+  return { schema, adapter, slice, saga };
 }
