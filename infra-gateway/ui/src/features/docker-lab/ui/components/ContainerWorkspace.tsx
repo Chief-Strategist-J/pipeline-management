@@ -25,6 +25,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { DOCKER_HELP_COMMANDS, DEFAULT_HELP_COMMANDS, type HelpCommand } from "../../constants/docker-help.constants";
+import { DOCKER_IMAGES_CATALOG } from "../../domain/docker-images.catalog";
+
 
 interface ContainerWorkspaceProps {
   containerId: string;
@@ -477,47 +479,87 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
               </div>
             )}
 
-            {activeTab === "specs" && (
-              <div className="space-y-4">
-                <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2 font-mono text-xs">
-                  <div className="flex justify-between text-slate-400">
-                    <span>Container ID:</span>
-                    <span className="text-white font-bold">{containerId}</span>
+            {activeTab === "specs" && (() => {
+              const catalogItem = DOCKER_IMAGES_CATALOG.find((img) => img.id === imageId);
+              const configJson = JSON.stringify(catalogItem?.defaultConfig || {}, null, 2);
+
+              return (
+                <div className="space-y-4">
+                  <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2 font-mono text-xs">
+                    <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Instance Runtime</span>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Container ID:</span>
+                      <span className="text-white font-bold">{containerId}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Status:</span>
+                      <span className="text-emerald-400 font-bold">{containerInfo.status}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Image Repository:</span>
+                      <span className="text-blue-400">{catalogItem?.image || imageId}:{catalogItem?.defaultTag || "latest"}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Port Bindings:</span>
+                      <span className="text-indigo-300">{containerInfo.ports.join(", ") || "None"}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-slate-400">
-                    <span>Status:</span>
-                    <span className="text-emerald-400 font-bold">{containerInfo.status}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-400">
-                    <span>Port Bindings:</span>
-                    <span className="text-indigo-300">{containerInfo.ports.join(", ") || "None"}</span>
+
+                  {catalogItem?.defaultConfig?.envVars && catalogItem.defaultConfig.envVars.length > 0 && (
+                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Environment Variables</span>
+                      <div className="space-y-1">
+                        {catalogItem.defaultConfig.envVars.map((env, i) => (
+                          <div key={i} className="flex items-center justify-between p-1.5 bg-slate-950 rounded border border-white/5 font-mono text-[11px]">
+                            <span className="text-emerald-400 font-bold">{env.key}</span>
+                            <span className="text-slate-300 break-all">{env.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {testResult && (
+                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                          {testResult.healthy ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-rose-400" />
+                          )}
+                          Health Status: {testResult.healthy ? "HEALTHY" : "UNHEALTHY"}
+                        </span>
+                        <span className="text-slate-400 font-mono">{testResult.latencyMs} ms</span>
+                      </div>
+                      <p className="text-[11px] font-mono text-slate-400 bg-slate-950 p-2 rounded border border-white/5">
+                        {testResult.message}
+                      </p>
+                    </div>
+                  )}
+
+                  <Button variant="secondary" size="sm" onClick={runTestProbe} isLoading={isTestingProbe} className="w-full">
+                    <Activity className="h-3.5 w-3.5 mr-1 text-blue-400" /> Re-run Health Probe
+                  </Button>
+
+                  <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Configuration JSON</span>
+                      <button
+                        onClick={() => copyToClipboard(configJson, 999)}
+                        className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
+                      >
+                        {copiedIdx === 999 ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                        <span>Copy JSON</span>
+                      </button>
+                    </div>
+                    <pre className="p-3 bg-slate-950 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 overflow-x-auto max-h-48">
+                      {configJson}
+                    </pre>
                   </div>
                 </div>
-
-                {testResult && (
-                  <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                        {testResult.healthy ? (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-rose-400" />
-                        )}
-                        Health Status: {testResult.healthy ? "HEALTHY" : "UNHEALTHY"}
-                      </span>
-                      <span className="text-slate-400 font-mono">{testResult.latencyMs} ms</span>
-                    </div>
-                    <p className="text-[11px] font-mono text-slate-400 bg-slate-950 p-2 rounded border border-white/5">
-                      {testResult.message}
-                    </p>
-                  </div>
-                )}
-
-                <Button variant="secondary" size="sm" onClick={runTestProbe} isLoading={isTestingProbe} className="w-full">
-                  <Activity className="h-3.5 w-3.5 mr-1 text-blue-400" /> Re-run Health Probe
-                </Button>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </div>
