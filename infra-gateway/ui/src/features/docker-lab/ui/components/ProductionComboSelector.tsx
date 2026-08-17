@@ -18,6 +18,8 @@ import {
   Terminal,
   ShieldCheck,
   X,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   PRODUCTION_STACK_PRESETS,
@@ -37,6 +39,8 @@ export const ProductionComboSelector: React.FC<ProductionComboSelectorProps> = (
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRODUCTION_STACK_PRESETS[0].id);
   const [networkName, setNetworkName] = useState("shared-lab-net");
   const [showApprovalPanel, setShowApprovalPanel] = useState(false);
+  const [approvalTab, setApprovalTab] = useState<"cli" | "env" | "json">("cli");
+  const [copiedCmdIdx, setCopiedCmdIdx] = useState<number | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [execStatus, setExecStatus] = useState<string | null>(null);
   const [execError, setExecError] = useState<string | null>(null);
@@ -65,6 +69,12 @@ export const ProductionComboSelector: React.FC<ProductionComboSelectorProps> = (
     a.download = `deploy-${selectedPreset.id}.sh`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleCopyText = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCmdIdx(idx);
+    setTimeout(() => setCopiedCmdIdx(null), 2000);
   };
 
   const handleApproveAndExecute = async () => {
@@ -187,52 +197,131 @@ export const ProductionComboSelector: React.FC<ProductionComboSelectorProps> = (
           ))}
         </div>
       ) : (
-        <div className="p-4 bg-slate-950 rounded-xl border border-amber-500/30 space-y-4 animate-in fade-in">
+        <div className="p-4 bg-slate-950 rounded-xl border border-amber-500/30 space-y-4 animate-in fade-in shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
               <ShieldCheck className="h-4 w-4" />
-              <span>Pre-Flight Docker Configuration Approval Required</span>
+              <span>Pre-Flight Docker Configuration Approval Inspector</span>
             </div>
-            <button type="button" onClick={() => setShowApprovalPanel(false)} className="text-slate-400 hover:text-white">
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setApprovalTab("cli")}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded ${approvalTab === "cli" ? "bg-blue-600 text-white" : "text-slate-400"}`}
+                >
+                  CLI Commands
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setApprovalTab("env")}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded ${approvalTab === "env" ? "bg-blue-600 text-white" : "text-slate-400"}`}
+                >
+                  Ports & Env Vars
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setApprovalTab("json")}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded ${approvalTab === "json" ? "bg-blue-600 text-white" : "text-slate-400"}`}
+                >
+                  Payload JSON
+                </button>
+              </div>
+
+              <button type="button" onClick={() => setShowApprovalPanel(false)} className="text-slate-400 hover:text-white">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          <p className="text-xs text-slate-300">
-            Please review the auto-resolved Docker container configuration and environment variables before starting <span className="font-bold text-white font-mono">{selectedPreset.name}</span>:
-          </p>
+          <div className="space-y-3">
+            {approvalTab === "cli" && (
+              <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                {plan.phases.map((phase) => (
+                  <div key={phase.phaseIndex} className="p-3 bg-slate-900 rounded-xl border border-white/5 space-y-2">
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">{phase.phaseName}</span>
+                    {phase.configs.map((cfg, idx) => {
+                      const portsStr = (cfg.ports || []).map((p) => `-p ${p.hostPort}:${p.containerPort}/${p.protocol || "tcp"}`).join(" ");
+                      const envStr = (cfg.envVars || []).map((e) => `-e "${e.key}=${e.value}"`).join(" ");
+                      const cmd = `docker run -d --name ${cfg.imageId}-node --network ${networkName} --network-alias ${cfg.imageId} ${portsStr} ${envStr} ${cfg.imageId}:${cfg.tag || "latest"}`;
 
-          <div className="space-y-2 font-mono text-[11px]">
-            {plan.phases.map((phase) => (
-              <div key={phase.phaseIndex} className="p-3 bg-slate-900 rounded-lg border border-white/5 space-y-1">
-                <div className="text-blue-400 font-bold">{phase.phaseName}</div>
-                {phase.configs.map((cfg) => (
-                  <div key={cfg.imageId} className="text-slate-300 pl-3">
-                    &bull; container: <span className="text-white font-bold">{cfg.imageId}</span> | net: <span className="text-emerald-400">{networkName}</span> | ports: <span className="text-indigo-300">{(cfg.ports || []).map((p) => `${p.hostPort}:${p.containerPort}`).join(", ") || "bridge"}</span>
+                      return (
+                        <div key={cfg.imageId} className="p-2 bg-slate-950 rounded-lg border border-white/5 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-mono text-emerald-400 font-bold">{cfg.imageId}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyText(cmd, idx)}
+                              className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1"
+                            >
+                              {copiedCmdIdx === idx ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                              <span>Copy CLI</span>
+                            </button>
+                          </div>
+                          <p className="text-[10px] font-mono text-slate-300 break-all leading-relaxed bg-slate-900/60 p-2 rounded">
+                            {cmd}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
-            ))}
+            )}
+
+            {approvalTab === "env" && (
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                {plan.orderedConfigs.map((cfg) => (
+                  <div key={cfg.imageId} className="p-3 bg-slate-900 rounded-xl border border-white/5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-white">{cfg.imageId}</span>
+                      <span className="text-[10px] text-indigo-300 font-mono">
+                        Ports: {(cfg.ports || []).map((p) => `${p.hostPort}:${p.containerPort}`).join(", ") || "Bridge Dynamic"}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(cfg.envVars || []).map((env, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-slate-950 border border-white/10 rounded text-[10px] font-mono text-emerald-300">
+                          {env.key}={env.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {approvalTab === "json" && (
+              <pre className="p-4 bg-slate-950 rounded-xl border border-white/5 font-mono text-[10px] text-emerald-300 overflow-x-auto max-h-64 leading-relaxed">
+                {JSON.stringify(plan, null, 2)}
+              </pre>
+            )}
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowApprovalPanel(false)}
-              className="px-4 py-2 text-xs text-slate-400 hover:text-white"
-            >
-              Cancel & Modify
-            </button>
+          <div className="flex items-center justify-between border-t border-white/10 pt-3">
+            <span className="text-[11px] text-slate-400 font-mono">
+              Network: <span className="text-emerald-400 font-bold">{networkName}</span> &bull; Containers: <span className="text-white font-bold">{plan.orderedConfigs.length}</span>
+            </span>
 
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={handleApproveAndExecute}
-              className="bg-emerald-600 hover:bg-emerald-500 border-emerald-400 px-5"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-1.5" /> Approve & Execute Stack Pipeline
-            </Button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowApprovalPanel(false)}
+                className="px-4 py-1.5 text-xs text-slate-400 hover:text-white"
+              >
+                Cancel
+              </button>
+
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={handleApproveAndExecute}
+                className="bg-emerald-600 hover:bg-emerald-500 border-emerald-400 px-5"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1.5" /> Approve & Execute Stack Pipeline
+              </Button>
+            </div>
           </div>
         </div>
       )}
