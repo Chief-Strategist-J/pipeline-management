@@ -2,6 +2,8 @@
 
 From here on, every folder/file uses `<feature>` as a placeholder — nothing below is wallet/auth/dashboard-specific. Swap `<feature>` for `work-order`, `deal`, `automation-definition`, `agent-run`, or whatever entity you're actually modeling.
 
+
+
 ## 0. How this maps onto the domains you named
 
 | Domain | `<feature>` becomes | Rules complexity | State machine | Workflow steps |
@@ -10,8 +12,11 @@ From here on, every folder/file uses `<feature>` as a placeholder — nothing be
 | Sales | `deal` | discount/approval rules composed from tenant + global | `lead → qualified → proposal → negotiation → closed` | quote-to-cash automation |
 | Automations (the builder itself) | `automation-definition` | trigger-condition rules | `queued → running → done/failed` | this IS the workflow engine, self-hosted |
 | AI workflows | `agent-run` | routing/guardrail rules, often async (safety checks) | `planning → executing → reviewing → done` | multi-step tool calls, human-approval gates |
+| Finance | `transaction` | fraud/risk scoring, AML checks (async, sanctions-list lookup), spend-velocity limits, tiered approval thresholds | `pending → authorized → settled/declined → reversed` | fraud-check pipeline (parallel: velocity + sanctions + device check), multi-approver sign-off above threshold, settlement/reconciliation automation |
+| Maps | `route` | geofence entry/exit (event-driven, async), service-area eligibility, zone/surge pricing | `planned → en-route → delayed/on-time → arrived/cancelled` | live ETA recalculation on location-update events, nearest-driver dispatch (rank + parallel ping candidates), geofence-triggered notifications |
+| Messaging | `conversation` | spam/abuse detection (async, classifier call), routing/priority rules, content moderation | `queued → active → waiting-on-customer/waiting-on-agent → resolved/reopened` | auto-routing to queue/agent, AI-drafted reply + human-approval gate before send, SLA-breach escalation |
 
-Nothing else in this doc names a domain — everything below is the generic engine that produces all four.
+Nothing else in this doc names a domain — everything below is the generic engine that produces every one of these.
 
 ## 1. Tracing — wired through every layer
 

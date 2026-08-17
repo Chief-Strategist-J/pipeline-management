@@ -3,11 +3,11 @@ import createSagaMiddleware from "redux-saga";
 import { featureRegistry } from "./feature-registry";
 import { rootSaga } from "./root-saga";
 
-const rootReducer = combineReducers(
-  Object.fromEntries(featureRegistry.map((f) => [f.key, f.reducer]))
-);
-
 export function configureAppStore() {
+  const rootReducer = combineReducers(
+    Object.fromEntries(featureRegistry.map((f) => [f.key, f.reducer]))
+  );
+
   const sagaMiddleware = createSagaMiddleware();
 
   const store = configureStore({
@@ -20,4 +20,4 @@ export function configureAppStore() {
 }
 
 export type AppStore = ReturnType<typeof configureAppStore>;
-export type RootState = ReturnType<typeof rootReducer>;
+export type RootState = ReturnType<AppStore["getState"]>;

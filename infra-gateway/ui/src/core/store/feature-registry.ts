@@ -3,6 +3,7 @@ import { ocspFeatureConfig } from "@/features/ocsp-stapling";
 import { compilerFeatureConfig } from "@/features/proxy-compiler";
 import { sandboxFeatureConfig } from "@/features/sandbox-generator";
 import { roadmapFeatureConfig } from "@/features/roadmap-matrix";
+import { dockerLabFeatureConfig } from "@/features/docker-lab";
 
 export interface FeatureModule {
   key: string;
@@ -15,4 +16,5 @@ export const featureRegistry: FeatureModule[] = [
   compilerFeatureConfig,
   sandboxFeatureConfig,
   roadmapFeatureConfig,
+  dockerLabFeatureConfig,
 ];

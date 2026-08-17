@@ -1,5 +1,3 @@
-import { trace } from "@opentelemetry/api";
-
 export const tracer = {
   startActiveSpan: <T>(_name: string, fn: (span: any) => Promise<T>): Promise<T> => {
     const mockSpan = {

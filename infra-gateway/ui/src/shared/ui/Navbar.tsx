@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldCheck, Cpu, Box, LayoutDashboard, Terminal } from "lucide-react";
+import { ShieldCheck, Cpu, Box, LayoutDashboard, Terminal, FlaskConical } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
@@ -13,6 +13,7 @@ export const Navbar: React.FC = () => {
     { href: "/ocsp", label: "OCSP Engine", icon: ShieldCheck },
     { href: "/compiler", label: "Proxy Compiler", icon: Cpu },
     { href: "/sandbox", label: "Sandbox Manager", icon: Box },
+    { href: "/docker-lab", label: "Docker Lab", icon: FlaskConical },
   ];
 
   return (

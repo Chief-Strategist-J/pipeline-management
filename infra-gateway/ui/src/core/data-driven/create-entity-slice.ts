@@ -16,7 +16,7 @@ export function createEntitySlice<T, Reducers extends SliceCaseReducers<GenericE
     initialState,
     reducers: {
       fetchRequested: (state) => { state.status = "loading"; state.error = null; },
-      fetchSucceeded: (state, action: PayloadAction<T[]>) => { state.status = "succeeded"; state.items = action.payload; },
+      fetchSucceeded: (state, action: PayloadAction<T[]>) => { state.status = "succeeded"; state.items = action.payload as any; },
       fetchFailed: (state, action: PayloadAction<string>) => { state.status = "failed"; state.error = action.payload; },
       ...(customReducers || {}),
     },
