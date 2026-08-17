@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import { DOCKER_HELP_COMMANDS, DEFAULT_HELP_COMMANDS } from "../../constants/docker-help.constants";
 import { DOCKER_IMAGES_CATALOG } from "../../domain/docker-images.catalog";
+import { resolveBackupRule } from "../../rules/docker-backup.rules";
+
 
 interface ContainerWorkspaceProps {
   containerId: string;
@@ -814,56 +816,73 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
         </div>
       )}
 
-      {showBackupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-blue-400">
-                <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                  <HardDriveDownload className="h-5 w-5" />
+      {showBackupModal && (() => {
+        const backupRule = resolveBackupRule(imageId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+            <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-blue-400">
+                  <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                    <HardDriveDownload className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-white">Database Backup & Teardown</h3>
+                    <p className="text-[10px] text-slate-400 font-mono">
+                      Rules Engine: {backupRule.hasNativeBackup ? `Native ${backupRule.backupType.toUpperCase()} Engine` : "JSON Snapshot Engine"}
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-base font-extrabold text-white">Container Data Backup</h3>
+                <button onClick={() => setShowBackupModal(false)} className="text-slate-400 hover:text-white">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button onClick={() => setShowBackupModal(false)} className="text-slate-400 hover:text-white">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Would you like to export a complete data backup (inspect configs, active logs, environment variables) before removing container <span className="font-bold text-white font-mono">{containerName}</span>?
-            </p>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {backupRule.hasNativeBackup ? (
+                  <>
+                    This container image (<span className="font-bold text-white">{imageId}</span>) supports <span className="font-bold text-emerald-400">Native Database Dump</span>. Would you like to export a full database <span className="font-mono text-emerald-300 font-bold">.{backupRule.fileExtension}</span> dump before deleting container <span className="font-bold text-white font-mono">{containerName}</span>?
+                  </>
+                ) : (
+                  <>
+                    Would you like to export a full container state backup (inspect configs, active logs, environment variables) before removing container <span className="font-bold text-white font-mono">{containerName}</span>?
+                  </>
+                )}
+              </p>
 
-            <div className="space-y-2.5 pt-2">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => handleConfirmDeleteContainer(true)}
-                isLoading={isDeleting}
-                className="w-full py-2.5"
-              >
-                <HardDriveDownload className="h-4 w-4 mr-2" /> Backup & Remove Container
-              </Button>
+              <div className="space-y-2.5 pt-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => handleConfirmDeleteContainer(true)}
+                  isLoading={isDeleting}
+                  className="w-full py-2.5"
+                >
+                  <HardDriveDownload className="h-4 w-4 mr-2" />
+                  {backupRule.hasNativeBackup ? `Download .${backupRule.fileExtension} Dump & Remove` : "Backup State & Remove"}
+                </Button>
 
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => handleConfirmDeleteContainer(false)}
-                isLoading={isDeleting}
-                className="w-full py-2.5"
-              >
-                <Trash2 className="h-4 w-4 mr-2" /> Remove Without Backup
-              </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => handleConfirmDeleteContainer(false)}
+                  isLoading={isDeleting}
+                  className="w-full py-2.5"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Remove Without Backup
+                </Button>
 
-              <button
-                onClick={() => setShowBackupModal(false)}
-                className="w-full text-center text-xs text-slate-400 hover:text-white py-1"
-              >
-                Cancel & Return
-              </button>
+                <button
+                  onClick={() => setShowBackupModal(false)}
+                  className="w-full text-center text-xs text-slate-400 hover:text-white py-1"
+                >
+                  Cancel & Return
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

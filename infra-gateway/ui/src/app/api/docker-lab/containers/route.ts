@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { resolveBackupRule } from "@/features/docker-lab/rules/docker-backup.rules";
 
 const execAsync = promisify(exec);
 
-async function runCmd(command: string, timeoutMs: number = 15000): Promise<{ stdout: string; stderr: string }> {
+async function runCmd(command: string, timeoutMs: number = 20000): Promise<{ stdout: string; stderr: string }> {
   try {
-    return await execAsync(command, { timeout: timeoutMs, maxBuffer: 1024 * 1024 * 5 });
+    return await execAsync(command, { timeout: timeoutMs, maxBuffer: 1024 * 1024 * 10 });
   } catch (err: any) {
     return { stdout: err.stdout || "", stderr: err.stderr || err.message || String(err) };
   }
@@ -50,28 +51,55 @@ export async function DELETE(request: Request) {
 
   if (backup) {
     const ts = Date.now();
-    backupFilename = `docker-lab-backup-${containerId.substring(0, 8)}-${ts}.json`;
+    const { stdout: labelImageId } = await runCmd(`docker inspect --format '{{index .Config.Labels "image-id"}}' ${containerId}`);
+    const { stdout: imageRepo } = await runCmd(`docker inspect --format '{{.Config.Image}}' ${containerId}`);
+    const { stdout: envRaw } = await runCmd(`docker inspect --format '{{range .Config.Env}}{{.}} {{end}}' ${containerId}`);
 
-    const { stdout: logsOut } = await runCmd(`docker logs --tail 500 ${containerId}`);
-    const { stdout: inspectOut } = await runCmd(`docker inspect ${containerId}`);
+    const imageId = labelImageId.trim() || imageRepo.trim() || "default";
 
-    let parsedInspect: any = [];
-    try {
-      parsedInspect = inspectOut ? JSON.parse(inspectOut) : [];
-    } catch {
-      parsedInspect = inspectOut;
+    const envMap: Record<string, string> = {};
+    envRaw.trim().split(" ").forEach((item) => {
+      const eqIdx = item.indexOf("=");
+      if (eqIdx > 0) envMap[item.substring(0, eqIdx)] = item.substring(eqIdx + 1);
+    });
+
+    const backupRule = resolveBackupRule(imageId, envMap);
+
+    if (backupRule.hasNativeBackup && backupRule.backupCommand) {
+      const { stdout: dumpOut } = await runCmd(
+        `docker exec ${containerId} sh -c "${backupRule.backupCommand}"`
+      );
+
+      if (dumpOut.trim()) {
+        backupFilename = `backup-${imageId}-${containerId.substring(0, 8)}-${ts}.${backupRule.fileExtension}`;
+        backupContent = dumpOut;
+      }
     }
 
-    backupContent = JSON.stringify(
-      {
-        containerId,
-        timestamp: new Date().toISOString(),
-        inspect: parsedInspect,
-        logs: logsOut || "",
-      },
-      null,
-      2
-    );
+    if (!backupContent) {
+      backupFilename = `backup-metadata-${containerId.substring(0, 8)}-${ts}.json`;
+      const { stdout: logsOut } = await runCmd(`docker logs --tail 500 ${containerId}`);
+      const { stdout: inspectOut } = await runCmd(`docker inspect ${containerId}`);
+
+      let parsedInspect: any = [];
+      try {
+        parsedInspect = inspectOut ? JSON.parse(inspectOut) : [];
+      } catch {
+        parsedInspect = inspectOut;
+      }
+
+      backupContent = JSON.stringify(
+        {
+          containerId,
+          imageId,
+          timestamp: new Date().toISOString(),
+          inspect: parsedInspect,
+          logs: logsOut || "",
+        },
+        null,
+        2
+      );
+    }
   }
 
   await runCmd(`docker rm -f ${containerId}`);
