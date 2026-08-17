@@ -16,12 +16,6 @@ function sanitizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
 }
 
-async function isPortInUse(port: number): Promise<boolean> {
-  if (!port) return false;
-  const { stdout } = await runCmd(`lsof -i :${port} || netstat -tuln | grep -q ":${port} " && echo IN_USE || echo FREE`);
-  return stdout.includes("IN_USE") || stdout.includes("LISTEN") || stdout.includes("ESTABLISHED");
-}
-
 async function getAvailableHostPort(desiredPort: number): Promise<number> {
   let port = desiredPort;
   while (port < desiredPort + 50) {
@@ -110,32 +104,30 @@ export async function POST(request: Request) {
       await runCmd(`docker rm -f ${targetName}`);
 
       const { stdout, stderr } = await runCmd(commands[i], 120000);
-      
-      const stdoutLines = stdout.trim().split("\n").map((l) => l.trim()).filter(Boolean);
-      const lastLine = stdoutLines.length > 0 ? stdoutLines[stdoutLines.length - 1] : "";
-      
-      const containerIdMatches = lastLine.match(/^[a-f0-9]{12,64}$/i);
-      const containerId = containerIdMatches ? lastLine.substring(0, 12) : targetName;
 
-      if (stderr && stderr.toLowerCase().includes("error:") && !containerIdMatches) {
-        error = stderr;
-        continue;
-      }
-
-      await runCmd(`docker start ${containerId}`);
+      await runCmd(`docker start ${targetName}`);
 
       const { stdout: inspectOut } = await runCmd(
-        `docker inspect --format '{{.ID}} {{.Name}} {{.State.Status}} {{range $p, $conf := .NetworkSettings.Ports}}{{$p}}->{{(index $conf 0).HostPort}} {{end}}' ${containerId}`
+        `docker inspect --format '{{.ID}} {{.Name}} {{.State.Status}} {{range $p, $conf := .NetworkSettings.Ports}}{{$p}}->{{(index $conf 0).HostPort}} {{end}}' ${targetName}`
       );
 
       const parts = inspectOut.trim().split(" ");
-      const fullId = (parts[0] || containerId).substring(0, 12);
+      const rawHexId = parts[0] || "";
       const nameFromInspect = (parts[1] || "").replace(/^\//, "");
       const status = parts[2] || "running";
       const portBindings = parts.slice(3).filter(Boolean);
 
+      const cleanContainerId = /^[a-f0-9]{12,64}$/i.test(rawHexId)
+        ? rawHexId.substring(0, 12)
+        : (nameFromInspect || targetName);
+
+      if (!rawHexId && stderr) {
+        error = stderr;
+        continue;
+      }
+
       containers.push({
-        containerId: fullId,
+        containerId: cleanContainerId,
         containerName: nameFromInspect || targetName,
         replicaIndex: i + 1,
         status,

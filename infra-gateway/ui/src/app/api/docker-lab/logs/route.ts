@@ -21,12 +21,17 @@ export async function GET(request: Request) {
   }
 
   const { stdout, stderr } = await runCmd(`docker logs --tail 100 --timestamps ${containerId}`);
+
+  if (stderr && (stderr.includes("No such container") || stderr.includes("Error response from daemon"))) {
+    return NextResponse.json([]);
+  }
+
   const rawOutput = (stdout + "\n" + stderr).trim();
 
   const logs = rawOutput
     .split("\n")
     .map((l) => l.trim())
-    .filter(Boolean)
+    .filter((line) => line && !line.includes("Error response from daemon"))
     .map((line) => {
       const spaceIdx = line.indexOf(" ");
       const timestamp = spaceIdx > 0 && line.substring(0, spaceIdx).includes("T")
