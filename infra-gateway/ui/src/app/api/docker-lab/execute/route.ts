@@ -37,8 +37,11 @@ export async function POST(request: Request) {
 
     for (let i = 0; i < configList.length; i++) {
       const config = configList[i];
-      const name = config.containerName || `${config.imageId}-node-${Date.now().toString(36).substring(4)}`;
+      const baseName = config.containerName || `${config.imageId}-node`;
+      const name = `${baseName}-${Date.now().toString(36).substring(4)}`;
       const alias = config.imageId;
+
+      await runCmd(`docker rm -f ${baseName} ${name} || true`);
 
       let portFlags = "";
       (config.ports || []).forEach((p) => {
@@ -58,7 +61,14 @@ export async function POST(request: Request) {
 
       const runCommand = `docker run -d --name ${name} --network ${networkName} --network-alias ${alias}${portFlags}${envFlags}${labelFlags} ${config.imageId}:${config.tag || "latest"}`;
 
-      const { stdout: containerId, stderr } = await runCmd(runCommand);
+      let { stdout: containerId, stderr } = await runCmd(runCommand);
+
+      if (!containerId.trim() && stderr.includes("port is already allocated")) {
+        const noPortCommand = `docker run -d --name ${name} --network ${networkName} --network-alias ${alias}${envFlags}${labelFlags} ${config.imageId}:${config.tag || "latest"}`;
+        const retryRes = await runCmd(noPortCommand);
+        containerId = retryRes.stdout;
+        stderr = retryRes.stderr;
+      }
 
       if (containerId.trim()) {
         results.push({

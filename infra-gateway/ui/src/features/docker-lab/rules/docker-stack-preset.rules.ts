@@ -164,6 +164,8 @@ export function generateDeployScript(plan: OrchestratedStackPlan): string {
 
       const labelFlags = ` --label managed-by=infra-gateway-docker-lab --label image-id=${cfg.imageId}`;
 
+      lines.push(`echo "  + Cleaning existing container instance ${name}..."`);
+      lines.push(`docker rm -f ${name} 2>/dev/null || true`);
       lines.push(`echo "  + Starting container: ${name} (${cfg.imageId}:${cfg.tag || "latest"})..."`);
       lines.push(`docker run -d --name ${name} --network ${plan.networkName} --network-alias ${alias}${portFlags}${envFlags}${labelFlags} ${cfg.imageId}:${cfg.tag || "latest"}`);
     });
