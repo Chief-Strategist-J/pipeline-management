@@ -94,6 +94,12 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
 
           {activeContainer && (
             <div className="flex items-center gap-2 flex-wrap">
+              <a
+                href={`/docker-lab/workspace/${activeContainer.containerId}`}
+                className="inline-flex items-center justify-center font-bold rounded-xl px-3 py-1.5 text-xs bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-200 border border-emerald-500/40 backdrop-blur-md transition-all shadow-lg shadow-emerald-500/20"
+              >
+                <TerminalIcon className="h-3.5 w-3.5 mr-1.5 text-emerald-400" /> Open Command Center Workspace
+              </a>
               {hostPort && (
                 <a
                   href={`http://localhost:${hostPort}`}
@@ -105,7 +111,7 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                 </a>
               )}
               <Button variant="secondary" size="sm" onClick={() => setIsTerminalOpen(true)}>
-                <TerminalIcon className="h-3.5 w-3.5 mr-1.5 text-emerald-400" /> Shell Access
+                <TerminalIcon className="h-3.5 w-3.5 mr-1.5 text-emerald-400" /> Quick Shell
               </Button>
               <Button variant="secondary" size="sm" onClick={() => onTestContainer(activeContainer.containerId)} isLoading={isLoading}>
                 <Activity className="h-3.5 w-3.5 mr-1.5 text-blue-400" /> Test Probe

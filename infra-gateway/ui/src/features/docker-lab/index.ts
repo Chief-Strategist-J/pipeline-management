@@ -24,3 +24,5 @@ export * from "./ui/components/ExecutionPanel";
 export * from "./ui/components/ConfigureModal";
 export * from "./ui/components/TerminalModal";
 export * from "./ui/components/ConfigPreviewModal";
+export * from "./ui/components/ContainerWorkspace";
+
