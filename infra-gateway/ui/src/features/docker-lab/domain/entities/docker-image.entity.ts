@@ -48,15 +48,18 @@ export interface ContainerConfig {
 export interface RunningContainer {
   containerId: string;
   containerName: string;
-  replicaIndex: number;
+  replicaIndex?: number;
   status: "starting" | "running" | "exited" | "error";
   ports: string[];
+  imageId?: string;
+  error?: string;
 }
 
 export interface ExecutionResult {
-  imageId: string;
+  imageId?: string;
   containers: RunningContainer[];
-  startedAt: string;
+  startedAt?: string;
+  networkName?: string;
   error?: string;
 }
 
@@ -73,84 +76,77 @@ export interface TestResult {
 export interface LogLine {
   timestamp: string;
   stream: "stdout" | "stderr";
-  line?: string;
   message: string;
+  line?: string;
 }
 
 export interface HealthProbe {
-  type: "tcp" | "http";
-  port: number;
+  type: "http" | "tcp" | "exec";
+  port?: number;
   path?: string;
+  command?: string;
 }
 
 export interface DockerImage {
   id: string;
   name: string;
+  category: string;
   image: string;
   defaultTag: string;
-  category: string;
   description: string;
   icon: string;
-  officialUrl: string;
+  badge?: string;
+  defaultPort?: number;
+  officialUrl?: string;
+  envVars?: any;
+  ports?: any;
+  volumes?: any;
+  healthProbe?: HealthProbe;
   defaultConfig: ContainerConfig;
-  healthProbe?: HealthProbe;
-}
-
-export interface CreateDockerImageParams {
-  id: string;
-  name: string;
-  image: string;
-  defaultTag: string;
-  category: string;
-  description: string;
-  icon: string;
-  defaultPort: number;
-  envVars?: EnvVar[];
-  volumes?: VolumeMount[];
-  healthProbe?: HealthProbe;
 }
 
 export class DockerImageEntity implements DockerImage {
-  public readonly id: string;
-  public readonly name: string;
-  public readonly image: string;
-  public readonly defaultTag: string;
-  public readonly category: string;
-  public readonly description: string;
-  public readonly icon: string;
-  public readonly officialUrl: string;
-  public readonly defaultConfig: ContainerConfig;
-  public readonly healthProbe?: HealthProbe;
+  id!: string;
+  name!: string;
+  category!: string;
+  image!: string;
+  defaultTag!: string;
+  description!: string;
+  icon!: string;
+  badge?: string;
+  defaultPort?: number;
+  officialUrl?: string;
+  envVars?: any;
+  ports?: any;
+  volumes?: any;
+  healthProbe?: HealthProbe;
 
-  constructor(params: CreateDockerImageParams) {
-    this.id = params.id;
-    this.name = params.name;
-    this.image = params.image;
-    this.defaultTag = params.defaultTag;
-    this.category = params.category;
-    this.description = params.description;
-    this.icon = params.icon;
-    this.officialUrl = params.image.includes("/")
-      ? `https://hub.docker.com/r/${params.image}`
-      : `https://hub.docker.com/_/${params.image}`;
+  get defaultConfig(): ContainerConfig {
+    const port = this.defaultPort || 8080;
+    const envList: EnvVar[] = Array.isArray(this.envVars)
+      ? this.envVars
+      : this.envVars
+      ? Object.entries(this.envVars).map(([key, value]) => ({ key, value: String(value) }))
+      : [];
 
-    this.defaultConfig = {
-      imageId: params.id,
-      tag: params.defaultTag,
-      ports: params.defaultPort ? [{ hostPort: params.defaultPort, containerPort: params.defaultPort, protocol: "tcp" }] : [],
-      envVars: params.envVars || [],
-      volumes: params.volumes || [],
+    return {
+      imageId: this.id,
+      tag: this.defaultTag || "latest",
+      containerName: `${this.id}-node`,
+      ports: [{ hostPort: port, containerPort: port, protocol: "tcp" }],
+      envVars: envList,
+      volumes: [],
       network: { mode: "bridge" },
       replicas: 1,
-      resources: { cpus: "1.0", memoryMb: 1024 },
+      resources: { cpus: "1.0", memoryMb: 512 },
       restartPolicy: "unless-stopped",
-      labels: [{ key: "managed-by", value: "infra-gateway-docker-lab" }],
+      labels: [],
     };
-
-    this.healthProbe = params.healthProbe || { type: "tcp", port: params.defaultPort };
   }
 
-  public static create(params: CreateDockerImageParams): DockerImageEntity {
-    return new DockerImageEntity(params);
+  static create(data: Record<string, any>): DockerImageEntity {
+    const entity = new DockerImageEntity();
+    Object.assign(entity, data);
+    return entity;
   }
 }

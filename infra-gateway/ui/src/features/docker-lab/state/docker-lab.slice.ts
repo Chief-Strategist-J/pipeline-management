@@ -99,8 +99,9 @@ export const dockerLabSlice = createSlice({
     },
     executeSucceeded: (state, action: PayloadAction<ExecutionResult>) => {
       state.status = "succeeded";
-      state.executions[action.payload.imageId] = action.payload;
-      if (action.payload.containers.length > 0) {
+      const mainImageId = action.payload.containers[0]?.imageId || action.payload.imageId || "default";
+      state.executions[mainImageId] = action.payload;
+      if (action.payload.containers && action.payload.containers.length > 0) {
         state.activeContainerId = action.payload.containers[0].containerId;
       }
       state.configuredImage = null;

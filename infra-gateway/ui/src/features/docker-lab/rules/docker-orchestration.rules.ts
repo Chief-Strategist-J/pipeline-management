@@ -74,13 +74,14 @@ export function resolveOrchestrationPlan(
   selectedConfigs: ContainerConfig[],
   networkName: string = "shared-lab-net"
 ): OrchestratedStackPlan {
+  const configs = (selectedConfigs || []).filter((c): c is ContainerConfig => Boolean(c && c.imageId));
   const envOverrides: Record<string, Record<string, string>> = {};
 
-  const hasKafka = selectedConfigs.some((c) => c.imageId === IMAGE_IDS.KAFKA);
-  const hasOtel = selectedConfigs.some((c) => c.imageId === IMAGE_IDS.OPENTELEMETRY_COLLECTOR);
-  const hasPrometheus = selectedConfigs.some((c) => c.imageId === IMAGE_IDS.PROMETHEUS);
+  const hasKafka = configs.some((c) => c.imageId === IMAGE_IDS.KAFKA);
+  const hasOtel = configs.some((c) => c.imageId === IMAGE_IDS.OPENTELEMETRY_COLLECTOR);
+  const hasPrometheus = configs.some((c) => c.imageId === IMAGE_IDS.PROMETHEUS);
 
-  const enrichedConfigs = selectedConfigs.map((cfg) => {
+  const enrichedConfigs = configs.map((cfg) => {
     const copyEnv = [...(cfg.envVars || [])];
     const imageId = cfg.imageId;
     const overrides: Record<string, string> = {};

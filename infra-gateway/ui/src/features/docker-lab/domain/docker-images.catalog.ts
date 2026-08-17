@@ -670,5 +670,5 @@ export const DOCKER_DEFAULT_TAGS: Record<string, string> = Object.fromEntries(
 );
 
 export const DOCKER_HUB_URLS: Record<string, string> = Object.fromEntries(
-  DOCKER_IMAGES_CATALOG.map((img) => [img.id, img.officialUrl])
+  DOCKER_IMAGES_CATALOG.map((img) => [img.id, img.officialUrl || ""])
 );

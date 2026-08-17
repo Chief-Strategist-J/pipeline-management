@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useRouter } from "next/navigation";
 import { dockerLabSlice } from "../../state/docker-lab.slice";
 import {
   selectFilteredCatalog,
@@ -28,6 +29,7 @@ const adapter = new DockerLabRestAdapter();
 
 export function useDockerLab() {
   const dispatch = useDispatch();
+  const router = useRouter();
 
   const catalog = useSelector(selectFilteredCatalog);
   const selectedCategory = useSelector(selectSelectedCategory);
@@ -87,20 +89,37 @@ export function useDockerLab() {
     dispatch(dockerLabSlice.actions.updateActiveConfig(patch));
   }, [dispatch]);
 
-  const executeImage = useCallback((config: ContainerConfig, imageId?: string) => {
-    setExecutingImageId(imageId || config.imageId);
+  const executeImage = useCallback(async (config: ContainerConfig, imageId?: string) => {
+    const targetId = imageId || config.imageId;
+    setExecutingImageId(targetId);
     dispatch(dockerLabSlice.actions.executeRequested(config));
-    setTimeout(() => setExecutingImageId(null), 3000);
-  }, [dispatch]);
+
+    try {
+      const res = await adapter.executeImage(config);
+      if (res && res.containers && res.containers.length > 0) {
+        const spawnedContainer = res.containers[0];
+        dispatch(dockerLabSlice.actions.executeSucceeded(res));
+        if (spawnedContainer.containerId) {
+          router.push(`/docker-lab/workspace/${spawnedContainer.containerId}`);
+        }
+      } else {
+        dispatch(dockerLabSlice.actions.executeFailed("Failed to spawn container"));
+      }
+    } catch (err: any) {
+      dispatch(dockerLabSlice.actions.executeFailed(err.message || "Execution failed"));
+    } finally {
+      setExecutingImageId(null);
+    }
+  }, [dispatch, router]);
 
   const executeSelectedImages = useCallback(() => {
     selectedImageIds.forEach((id) => {
       const img = DOCKER_IMAGES_CATALOG.find((i) => i.id === id);
       if (img) {
-        dispatch(dockerLabSlice.actions.executeRequested(img.defaultConfig));
+        executeImage(img.defaultConfig, id);
       }
     });
-  }, [selectedImageIds, dispatch]);
+  }, [selectedImageIds, executeImage]);
 
   const previewSelectedConfig = useCallback(() => {
     const configs = selectedImageIds.map((id) => {
