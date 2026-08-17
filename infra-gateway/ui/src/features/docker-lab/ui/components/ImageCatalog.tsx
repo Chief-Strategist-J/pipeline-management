@@ -34,16 +34,10 @@ interface ImageCatalogProps {
   isLoading: boolean;
 }
 
-const CATEGORIES = [
-  "All",
-  "Databases",
-  "Messaging",
-  "Observability",
-  "Search",
-  "Proxy & Gateway",
-  "Security & Auth",
-  "CI/CD & Infra",
-];
+import { CATEGORIES } from "../../constants/docker-lab.constants";
+
+const CATEGORY_TABS = ["All", ...Object.values(CATEGORIES)];
+
 
 export const ImageCatalog: React.FC<ImageCatalogProps> = ({
   catalog,
@@ -80,11 +74,12 @@ export const ImageCatalog: React.FC<ImageCatalogProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0">
-          {CATEGORIES.map((cat) => {
+          {CATEGORY_TABS.map((cat) => {
             const isActive = selectedCategory === cat;
             return (
               <button
                 key={cat}
+                type="button"
                 onClick={() => onSelectCategory(cat)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
                   isActive

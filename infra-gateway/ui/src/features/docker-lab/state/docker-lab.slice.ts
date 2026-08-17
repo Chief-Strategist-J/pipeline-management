@@ -9,9 +9,24 @@ import type {
 import { DOCKER_IMAGES_CATALOG } from "../domain/docker-images.catalog";
 
 function filterCatalog(catalog: DockerImage[], search: string, category: string): DockerImage[] {
+  const searchLower = (search || "").toLowerCase().trim();
+  const catLower = (category || "All").toLowerCase().trim();
+
   return catalog.filter((img) => {
-    const matchesSearch = !search || img.name.toLowerCase().includes(search.toLowerCase()) || img.image.toLowerCase().includes(search.toLowerCase()) || img.description.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = category === "All" || img.category === category;
+    const matchesSearch =
+      !searchLower ||
+      img.name.toLowerCase().includes(searchLower) ||
+      img.image.toLowerCase().includes(searchLower) ||
+      img.description.toLowerCase().includes(searchLower) ||
+      img.category.toLowerCase().includes(searchLower);
+
+    const imgCatLower = (img.category || "").toLowerCase();
+    const matchesCategory =
+      catLower === "all" ||
+      imgCatLower === catLower ||
+      imgCatLower.includes(catLower) ||
+      catLower.includes(imgCatLower);
+
     return matchesSearch && matchesCategory;
   });
 }
