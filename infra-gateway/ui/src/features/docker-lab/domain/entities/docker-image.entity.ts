@@ -1,4 +1,4 @@
-import type { ImageId, CategoryKind } from "../constants/docker-lab.constants";
+import type { ImageId, CategoryKind } from "../../constants/docker-lab.constants";
 
 export interface PortMapping {
   hostPort: number;
@@ -60,6 +60,23 @@ export interface ExecutionResult {
   error?: string;
 }
 
+export interface TestResult {
+  containerId: string;
+  success: boolean;
+  healthy?: boolean;
+  probeOutput?: string;
+  message: string;
+  latencyMs: number;
+  testedAt: string;
+}
+
+export interface LogLine {
+  timestamp: string;
+  stream: "stdout" | "stderr";
+  line?: string;
+  message: string;
+}
+
 export interface HealthProbe {
   type: "tcp" | "http";
   port: number;
@@ -79,31 +96,33 @@ export interface DockerImage {
   healthProbe?: HealthProbe;
 }
 
+export interface CreateDockerImageParams {
+  id: string;
+  name: string;
+  image: string;
+  defaultTag: string;
+  category: string;
+  description: string;
+  icon: string;
+  defaultPort: number;
+  envVars?: EnvVar[];
+  volumes?: VolumeMount[];
+  healthProbe?: HealthProbe;
+}
+
 export class DockerImageEntity implements DockerImage {
-  public readonly id: ImageId;
+  public readonly id: string;
   public readonly name: string;
   public readonly image: string;
   public readonly defaultTag: string;
-  public readonly category: CategoryKind;
+  public readonly category: string;
   public readonly description: string;
   public readonly icon: string;
   public readonly officialUrl: string;
   public readonly defaultConfig: ContainerConfig;
   public readonly healthProbe: HealthProbe;
 
-  constructor(params: {
-    id: ImageId;
-    name: string;
-    image: string;
-    defaultTag: string;
-    category: CategoryKind;
-    description: string;
-    icon: string;
-    defaultPort: number;
-    envVars?: EnvVar[];
-    volumes?: VolumeMount[];
-    healthProbe?: HealthProbe;
-  }) {
+  constructor(params: CreateDockerImageParams) {
     this.id = params.id;
     this.name = params.name;
     this.image = params.image;
@@ -131,7 +150,7 @@ export class DockerImageEntity implements DockerImage {
     this.healthProbe = params.healthProbe || { type: "tcp", port: params.defaultPort };
   }
 
-  public static create(params: Parameters<typeof DockerImageEntity.prototype.constructor>[0]): DockerImageEntity {
+  public static create(params: CreateDockerImageParams): DockerImageEntity {
     return new DockerImageEntity(params);
   }
 }

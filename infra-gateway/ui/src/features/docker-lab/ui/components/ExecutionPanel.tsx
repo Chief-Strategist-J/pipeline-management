@@ -180,17 +180,17 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                 {activeTestResult ? (
                   <div className="space-y-1 text-xs">
                     <div className="flex items-center gap-2">
-                      {activeTestResult.healthy ? (
+                      {(activeTestResult.healthy ?? activeTestResult.success) ? (
                         <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                       ) : (
                         <AlertCircle className="h-4 w-4 text-rose-400" />
                       )}
                       <span className="font-bold text-white">
-                        {activeTestResult.healthy ? "HEALTHY" : "UNHEALTHY"}
+                        {(activeTestResult.healthy ?? activeTestResult.success) ? "HEALTHY" : "UNHEALTHY"}
                       </span>
                     </div>
                     <p className="text-[11px] font-mono text-slate-400 bg-slate-900 p-2 rounded-lg border border-white/5 mt-1 break-all">
-                      {activeTestResult.probeOutput}
+                      {activeTestResult.probeOutput || activeTestResult.message}
                     </p>
                   </div>
                 ) : (
@@ -216,7 +216,7 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                   activeLogs.map((log, idx) => (
                     <div key={idx} className="flex gap-2 text-slate-300 hover:bg-white/5 py-0.5 px-1 rounded">
                       <span className="text-slate-600 select-none shrink-0">[{log.timestamp.substring(0, 19)}]</span>
-                      <span className={log.stream === "stderr" ? "text-rose-400" : "text-emerald-300"}>{log.message}</span>
+                      <span className={log.stream === "stderr" ? "text-rose-400" : "text-emerald-300"}>{log.message || log.line}</span>
                     </div>
                   ))
                 ) : (
