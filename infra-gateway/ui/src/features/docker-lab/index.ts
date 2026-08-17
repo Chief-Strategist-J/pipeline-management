@@ -19,6 +19,8 @@ export * from "./state/docker-lab.slice";
 export * from "./state/docker-lab.selectors";
 export * from "./application/sagas/manage-docker-lab.saga";
 export * from "./ui/hooks/useDockerLab";
+export * from "./ui/hooks/useContainerWorkspace";
+
 export * from "./ui/components/ImageCatalog";
 export * from "./ui/components/ExecutionPanel";
 export * from "./ui/components/ConfigureModal";

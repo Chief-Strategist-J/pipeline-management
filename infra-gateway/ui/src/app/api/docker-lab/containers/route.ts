@@ -5,9 +5,9 @@ import { resolveBackupRule } from "@/features/docker-lab/rules/docker-backup.rul
 
 const execAsync = promisify(exec);
 
-async function runCmd(command: string, timeoutMs: number = 20000): Promise<{ stdout: string; stderr: string }> {
+async function runCmd(command: string, timeoutMs: number = 25000): Promise<{ stdout: string; stderr: string }> {
   try {
-    return await execAsync(command, { timeout: timeoutMs, maxBuffer: 1024 * 1024 * 10 });
+    return await execAsync(command, { timeout: timeoutMs, maxBuffer: 1024 * 1024 * 20 });
   } catch (err: any) {
     return { stdout: err.stdout || "", stderr: err.stderr || err.message || String(err) };
   }
@@ -40,7 +40,10 @@ export async function GET() {
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
   const containerId = searchParams.get("containerId");
-  const backup = searchParams.get("backup") === "true";
+  const backupMode = searchParams.get("backupMode") || "none";
+  const legacyBackup = searchParams.get("backup") === "true";
+
+  const mode = backupMode !== "none" ? backupMode : legacyBackup ? "native" : "none";
 
   if (!containerId) {
     return NextResponse.json({ error: "Missing containerId" }, { status: 400 });
@@ -48,8 +51,9 @@ export async function DELETE(request: Request) {
 
   let backupFilename: string | undefined;
   let backupContent: string | undefined;
+  let mimeType: string = "application/octet-stream";
 
-  if (backup) {
+  if (mode !== "none") {
     const ts = Date.now();
     const { stdout: labelImageId } = await runCmd(`docker inspect --format '{{index .Config.Labels "image-id"}}' ${containerId}`);
     const { stdout: imageRepo } = await runCmd(`docker inspect --format '{{.Config.Image}}' ${containerId}`);
@@ -63,37 +67,50 @@ export async function DELETE(request: Request) {
       if (eqIdx > 0) envMap[item.substring(0, eqIdx)] = item.substring(eqIdx + 1);
     });
 
-    const backupRule = resolveBackupRule(imageId, envMap);
-
-    if (backupRule.hasNativeBackup && backupRule.backupCommand) {
-      const { stdout: dumpOut } = await runCmd(
-        `docker exec ${containerId} sh -c "${backupRule.backupCommand}"`
-      );
-
-      if (dumpOut.trim()) {
-        backupFilename = `backup-${imageId}-${containerId.substring(0, 8)}-${ts}.${backupRule.fileExtension}`;
-        backupContent = dumpOut;
+    if (mode === "native") {
+      const backupRule = resolveBackupRule(imageId, envMap);
+      if (backupRule.hasNativeBackup && backupRule.backupCommand) {
+        const { stdout: dumpOut } = await runCmd(`docker exec ${containerId} sh -c "${backupRule.backupCommand}"`);
+        if (dumpOut.trim()) {
+          backupFilename = `native-dump-${imageId}-${containerId.substring(0, 8)}-${ts}.${backupRule.fileExtension}`;
+          backupContent = dumpOut;
+          mimeType = backupRule.mimeType;
+        }
       }
-    }
-
-    if (!backupContent) {
-      backupFilename = `backup-metadata-${containerId.substring(0, 8)}-${ts}.json`;
+    } else if (mode === "volume") {
+      const { stdout: mountsOut } = await runCmd(`docker inspect --format '{{range .Mounts}}{{.Destination}} {{end}}' ${containerId}`);
       const { stdout: logsOut } = await runCmd(`docker logs --tail 500 ${containerId}`);
       const { stdout: inspectOut } = await runCmd(`docker inspect ${containerId}`);
 
-      let parsedInspect: any = [];
-      try {
-        parsedInspect = inspectOut ? JSON.parse(inspectOut) : [];
-      } catch {
-        parsedInspect = inspectOut;
-      }
+      backupFilename = `volume-archive-${imageId}-${containerId.substring(0, 8)}-${ts}.json`;
+      mimeType = "application/json";
+
+      backupContent = JSON.stringify(
+        {
+          containerId,
+          imageId,
+          mountDestinations: mountsOut.trim().split(" ").filter(Boolean),
+          inspect: inspectOut ? JSON.parse(inspectOut) : [],
+          logs: logsOut || "",
+          timestamp: new Date().toISOString(),
+        },
+        null,
+        2
+      );
+    }
+
+    if (!backupContent) {
+      backupFilename = `snapshot-state-${containerId.substring(0, 8)}-${ts}.json`;
+      mimeType = "application/json";
+      const { stdout: logsOut } = await runCmd(`docker logs --tail 500 ${containerId}`);
+      const { stdout: inspectOut } = await runCmd(`docker inspect ${containerId}`);
 
       backupContent = JSON.stringify(
         {
           containerId,
           imageId,
           timestamp: new Date().toISOString(),
-          inspect: parsedInspect,
+          inspect: inspectOut ? JSON.parse(inspectOut) : [],
           logs: logsOut || "",
         },
         null,
@@ -109,5 +126,6 @@ export async function DELETE(request: Request) {
     containerId,
     backupFilename,
     backupContent,
+    mimeType,
   });
 }
