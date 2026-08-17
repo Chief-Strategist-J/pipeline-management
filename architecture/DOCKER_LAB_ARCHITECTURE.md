@@ -19,7 +19,8 @@
    - [Algorithm 2: `resolveExecutionStrategy`](#algorithm-2-resolveexecutionstrategy)
    - [Algorithm 3: `inspectContainer`](#algorithm-3-inspectcontainer)
    - [Algorithm 4: API Endpoint Pipeline](#algorithm-4-api-endpoint-pipeline)
-6. [Production Verification & Maintenance](#6-production-verification--maintenance)
+6. [Step-by-Step Developer Extension Guide](#6-step-by-step-developer-extension-guide)
+7. [Production Verification & Maintenance](#7-production-verification--maintenance)
 
 ---
 
@@ -49,60 +50,60 @@ graph TB
     classDef engineStyle fill:#4c1d95,stroke:#c084fc,stroke-width:2px,color:#fff;
     classDef dockerStyle fill:#831843,stroke:#f472b6,stroke-width:2px,color:#fff;
 
-    subgraph UI_Layer["🖥️ Presentation & Terminal UI Layer"]
-        CatalogUI["📇 ImageCatalog Component"]:::clientStyle
-        ExecUI["💻 ExecutionPanel Component"]:::clientStyle
-        TerminalUI["🖥️ TerminalModal Component"]:::clientStyle
-        ConfigUI["⚙️ ConfigureModal Component"]:::clientStyle
+    subgraph UI_Layer["Presentation UI Layer"]
+        CatalogUI["ImageCatalog Component"]:::clientStyle
+        ExecUI["ExecutionPanel Component"]:::clientStyle
+        TerminalUI["TerminalModal Component"]:::clientStyle
+        ConfigUI["ConfigureModal Component"]:::clientStyle
     end
 
-    subgraph State_Layer["⚡ Redux Application & State Layer"]
-        Slice["📦 Slice State (docker-lab.slice.ts)"]:::stateStyle
-        Selectors["🔍 Memoized Selectors"]:::stateStyle
-        Saga["⚙️ Redux Saga Orchestrator"]:::stateStyle
+    subgraph State_Layer["Redux Application State Layer"]
+        Slice["Slice State docker-lab.slice.ts"]:::stateStyle
+        Selectors["Memoized Selectors"]:::stateStyle
+        Saga["Redux Saga Orchestrator"]:::stateStyle
     end
 
-    subgraph Port_Adapter_Layer["🔌 Hexagonal Boundary Layer"]
-        Port["🔌 DockerLabPort Interface"]:::portStyle
-        Adapter["🌐 DockerLabRestAdapter"]:::portStyle
+    subgraph Port_Adapter_Layer["Hexagonal Boundary Layer"]
+        Port["DockerLabPort Interface"]:::portStyle
+        Adapter["DockerLabRestAdapter"]:::portStyle
     end
 
-    subgraph API_Layer["🚪 Next.js API Gateway Layer"]
-        ExecuteAPI["🚀 POST /api/docker-lab/execute"]:::apiStyle
-        ExecAPI["🐚 POST /api/docker-lab/exec"]:::apiStyle
-        LogsAPI["📜 GET /api/docker-lab/logs"]:::apiStyle
-        TestAPI["🩺 POST /api/docker-lab/test"]:::apiStyle
-        DeleteAPI["🗑️ DELETE /api/docker-lab/containers"]:::apiStyle
+    subgraph API_Layer["Next.js API Gateway Layer"]
+        ExecuteAPI["POST /api/docker-lab/execute"]:::apiStyle
+        ExecAPI["POST /api/docker-lab/exec"]:::apiStyle
+        LogsAPI["GET /api/docker-lab/logs"]:::apiStyle
+        TestAPI["POST /api/docker-lab/test"]:::apiStyle
+        DeleteAPI["DELETE /api/docker-lab/containers"]:::apiStyle
     end
 
-    subgraph Core_Engine["🔮 Core Rules Engine Engine"]
-        Inspector["🔍 Runtime Inspector"]:::engineStyle
-        Phase1["✨ Phase 1: Command Rules Engine"]:::engineStyle
-        Phase2["🛡️ Phase 2: Strategy Rules Engine"]:::engineStyle
-        Constants["💎 Constants Catalog"]:::engineStyle
+    subgraph Core_Engine["Core Rules Engine Engine"]
+        Inspector["Runtime Inspector"]:::engineStyle
+        Phase1["Phase 1: Command Rules Engine"]:::engineStyle
+        Phase2["Phase 2: Strategy Rules Engine"]:::engineStyle
+        Constants["Constants Catalog"]:::engineStyle
     end
 
-    subgraph Docker_Host["🐳 Docker Engine & Containers"]
-        Daemon["🐳 Docker Engine Socket"]:::dockerStyle
-        Containers["📦 Containers (Postgres, Kafka, Redis, Qdrant...)"]:::dockerStyle
+    subgraph Docker_Host["Docker Engine Host"]
+        Daemon["Docker Engine Socket"]:::dockerStyle
+        Containers["Containers Postgres, Kafka, Redis, Qdrant"]:::dockerStyle
     end
 
-    CatalogUI -->|1. Dispatch Execute Action| Saga
-    ExecUI -->|2. Dispatch Shell Execution| Saga
-    TerminalUI -->|3. Dispatch SQL/Query Action| Saga
-    Saga -->|Reads State| Selectors
-    Saga -->|Calls Port| Port
-    Port -->|Implemented By| Adapter
-    Adapter -->|HTTP POST| ExecAPI
-    Adapter -->|HTTP POST| ExecuteAPI
-    Adapter -->|HTTP GET| LogsAPI
+    CatalogUI --> Saga
+    ExecUI --> Saga
+    TerminalUI --> Saga
+    Saga --> Selectors
+    Saga --> Port
+    Port --> Adapter
+    Adapter --> ExecAPI
+    Adapter --> ExecuteAPI
+    Adapter --> LogsAPI
 
     ExecAPI --> Inspector
-    Inspector -->|Returns ContainerInfo| Core_Engine
+    Inspector --> Core_Engine
     Core_Engine --> Constants
     ExecAPI --> Phase1
-    Phase1 -->|Transforms Command| Phase2
-    Phase2 -->|Executes Strategy| Daemon
+    Phase1 --> Phase2
+    Phase2 --> Daemon
     Daemon --> Containers
 ```
 
@@ -116,31 +117,31 @@ graph LR
     classDef domainStyle fill:#4c1d95,stroke:#c084fc,stroke-width:2px,color:#fff;
     classDef drivenStyle fill:#701a75,stroke:#f0abfc,stroke-width:2px,color:#fff;
 
-    subgraph Drivers["📥 Driving Drivers (User Actions)"]
-        WebUI["🖥️ React Web Application UI"]:::driverStyle
-        CLITerminal["🐚 Interactive Terminal Modal"]:::driverStyle
+    subgraph Drivers["Driving Drivers User Actions"]
+        WebUI["React Web Application UI"]:::driverStyle
+        CLITerminal["Interactive Terminal Modal"]:::driverStyle
     end
 
-    subgraph Application["🏰 Hexagonal Core Architecture"]
-        subgraph Ports["🔌 Inbound Port Contracts"]
-            InboundPort["DockerLabPort (Port Interface)"]:::portStyle
+    subgraph Application["Hexagonal Core Architecture"]
+        subgraph Ports["Inbound Port Contracts"]
+            InboundPort["DockerLabPort Interface"]:::portStyle
         end
-        subgraph Domain["💎 Domain Engine Core"]
+        subgraph Domain["Domain Engine Core"]
             Entities["DockerImage Entity Model"]:::domainStyle
             Catalog["DOCKER_IMAGES_CATALOG"]:::domainStyle
             RulesEngine["Dual-Phase Rules Engine"]:::domainStyle
         end
     end
 
-    subgraph Driven["📤 Driven Adapters (Infrastructure)"]
-        RESTAdapter["🌐 DockerLabRestAdapter"]:::drivenStyle
-        DockerCLI["🐳 Docker CLI Child Process Facade"]:::drivenStyle
+    subgraph Driven["Driven Adapters Infrastructure"]
+        RESTAdapter["DockerLabRestAdapter"]:::drivenStyle
+        DockerCLI["Docker CLI Child Process Facade"]:::drivenStyle
     end
 
-    Drivers -->|Invoke Methods| InboundPort
-    InboundPort -->|Implemented By| RESTAdapter
-    RESTAdapter -->|Evaluate Rules| Domain
-    Domain -->|Execute System Call| DockerCLI
+    Drivers --> InboundPort
+    InboundPort --> RESTAdapter
+    RESTAdapter --> Domain
+    Domain --> DockerCLI
 ```
 
 ### 2.3 End-to-End Sequence Diagram
@@ -182,28 +183,28 @@ flowchart TD
     classDef decisionStyle fill:#a21caf,stroke:#f0abfc,stroke-width:2px,color:#fff;
     classDef cleanStyle fill:#b91c1c,stroke:#f87171,stroke-width:2px,color:#fff;
 
-    Start([🚀 User Clicks 'Execute Selected']):::startStyle --> BuildRunCmd[🔨 Build docker run Command with Port Allocation]:::processStyle
-    BuildRunCmd --> ExecDockerRun[🐳 Execute `docker run -d --name dlab-image-xxxx`]:::processStyle
-    ExecDockerRun --> InspectID[🔍 Run `docker inspect --format '{{.ID}}'`]:::processStyle
-    InspectID --> GetShortID[🔑 Extract 12-character Hex Container ID]:::processStyle
-    GetShortID --> StartLogPoll[📜 Initiate Polling `GET /api/docker-lab/logs`]:::processStyle
-    GetShortID --> ProbeHealth[🩺 Run Health Probe `POST /api/docker-lab/test`]:::processStyle
+    Start([User Clicks Execute Selected]):::startStyle --> BuildRunCmd[Build docker run Command with Port Allocation]:::processStyle
+    BuildRunCmd --> ExecDockerRun[Execute docker run -d --name dlab-image-xxxx]:::processStyle
+    ExecDockerRun --> InspectID[Run docker inspect format .ID]:::processStyle
+    InspectID --> GetShortID[Extract 12-character Hex Container ID]:::processStyle
+    GetShortID --> StartLogPoll[Initiate Polling GET /api/docker-lab/logs]:::processStyle
+    GetShortID --> ProbeHealth[Run Health Probe POST /api/docker-lab/test]:::processStyle
     
     ProbeHealth --> CheckStatus{Status Health Check Passed?}:::decisionStyle
-    CheckStatus -- Yes --> MarkRunning[🟢 Set Container Status: 'running']:::processStyle
-    CheckStatus -- No --> RetryProbe[🔄 Retry Health Check Probe]:::processStyle
+    CheckStatus -- Yes --> MarkRunning[Set Container Status: running]:::processStyle
+    CheckStatus -- No --> RetryProbe[Retry Health Check Probe]:::processStyle
     RetryProbe --> MarkRunning
 
-    MarkRunning --> ExecUserCmd[🐚 Developer Submits Command]:::processStyle
-    ExecUserCmd --> InspectEnv[🔍 Inspect Environment Variables dynamically]:::processStyle
-    InspectEnv --> Phase1Transform[✨ Phase 1 Transformation: psql, mysql, redis-cli...]:::processStyle
-    Phase1Transform --> Phase2Strategy[🛡️ Phase 2 Strategy: Distroless vs Shell Execution]:::processStyle
-    Phase2Strategy --> ReturnOutput[📊 Return Result JSON to UI]:::processStyle
+    MarkRunning --> ExecUserCmd[Developer Submits Command]:::processStyle
+    ExecUserCmd --> InspectEnv[Inspect Environment Variables dynamically]:::processStyle
+    InspectEnv --> Phase1Transform[Phase 1 Transformation: psql, mysql, redis-cli]:::processStyle
+    Phase1Transform --> Phase2Strategy[Phase 2 Strategy: Distroless vs Shell Execution]:::processStyle
+    Phase2Strategy --> ReturnOutput[Return Result JSON to UI]:::processStyle
 
-    ReturnOutput --> UserDelete[🛑 User Deletes Container]:::processStyle
-    UserDelete --> ExecDockerRM[🧹 Execute `docker rm -f containerId`]:::cleanStyle
-    ExecDockerRM --> StopLogs[🛑 Return Empty Array `[]` for Logs API]:::cleanStyle
-    StopLogs --> End([🏁 Container Safely Stopped & Cleaned]):::cleanStyle
+    ReturnOutput --> UserDelete[User Deletes Container]:::processStyle
+    UserDelete --> ExecDockerRM[Execute docker rm -f containerId]:::cleanStyle
+    ExecDockerRM --> StopLogs[Return Empty Array for Logs API]:::cleanStyle
+    StopLogs --> End([Container Safely Stopped & Cleaned]):::cleanStyle
 ```
 
 ---
@@ -219,21 +220,21 @@ flowchart TD
     classDef p2Style fill:#701a75,stroke:#f0abfc,stroke-width:2px,color:#fff;
     classDef outputStyle fill:#15803d,stroke:#4ade80,stroke-width:2px,color:#fff;
 
-    Input([📥 Incoming Payload: containerId, rawCommand]):::inputStyle --> Inspect[🔍 Inspect Container via docker inspect]:::inputStyle
-    Inspect --> CreateCtx[📋 Create RuleContext: name, image, env, rawCommand, isSql]:::inputStyle
+    Input([Incoming Payload: containerId, rawCommand]):::inputStyle --> Inspect[Inspect Container via docker inspect]:::inputStyle
+    Inspect --> CreateCtx[Create RuleContext: name, image, env, rawCommand, isSql]:::inputStyle
     
-    CreateCtx --> Phase1Filter[✨ Filter Active Rules: rule.enabled == true]:::p1Style
-    Phase1Filter --> Phase1Sort[🔢 Sort Rules by Priority Descending: 100 -> 10]:::p1Style
+    CreateCtx --> Phase1Filter[Filter Active Rules: rule.enabled == true]:::p1Style
+    Phase1Filter --> Phase1Sort[Sort Rules by Priority Descending: 100 -> 10]:::p1Style
     Phase1Sort --> Phase1Loop{Match Rule Condition}:::p1Style
     
-    Phase1Loop -- Postgres SQL --> TransformPostgres[🐘 Transform: psql -U pgUser -d pgDb -c "SQL"]:::p1Style
-    Phase1Loop -- MySQL SQL --> TransformMySQL[🐬 Transform: mysql -u user -pPass -e "SQL"]:::p1Style
-    Phase1Loop -- Redis Cmd --> TransformRedis[🔴 Transform: redis-cli cmd]:::p1Style
-    Phase1Loop -- Mongo Cmd --> TransformMongo[🍃 Transform: mongosh --eval "query"]:::p1Style
-    Phase1Loop -- Kafka Cmd --> TransformKafka[🚀 Transform: kafka-topics.sh --list]:::p1Style
-    Phase1Loop -- Fallback --> TransformFallback[⚙️ Transform: PATH=$PATH:/opt/kafka/bin...]:::p1Style
+    Phase1Loop -- Postgres SQL --> TransformPostgres[Transform: psql -U pgUser -d pgDb -c SQL]:::p1Style
+    Phase1Loop -- MySQL SQL --> TransformMySQL[Transform: mysql -u user -pPass -e SQL]:::p1Style
+    Phase1Loop -- Redis Cmd --> TransformRedis[Transform: redis-cli cmd]:::p1Style
+    Phase1Loop -- Mongo Cmd --> TransformMongo[Transform: mongosh --eval query]:::p1Style
+    Phase1Loop -- Kafka Cmd --> TransformKafka[Transform: kafka-topics.sh --list]:::p1Style
+    Phase1Loop -- Fallback --> TransformFallback[Transform: PATH=$PATH:/opt/kafka/bin...]:::p1Style
 
-    TransformPostgres --> Phase2Start[🛡️ Pass Transformed Command to Phase 2 Execution Strategy]:::p2Style
+    TransformPostgres --> Phase2Start[Pass Transformed Command to Phase 2 Execution Strategy]:::p2Style
     TransformMySQL --> Phase2Start
     TransformRedis --> Phase2Start
     TransformMongo --> Phase2Start
@@ -241,19 +242,19 @@ flowchart TD
     TransformFallback --> Phase2Start
 
     Phase2Start --> CheckStrategy{Matched Strategy Rule}:::p2Style
-    CheckStrategy -- Postgres Rule --> StrategyPostgres[🐘 Execute PostgreSQL Strategy & Check Error Signatures]:::p2Style
-    CheckStrategy -- MySQL Rule --> StrategyMySQL[🐬 Execute MySQL Strategy & Check Error Signatures]:::p2Style
-    CheckStrategy -- Redis Rule --> StrategyRedis[🔴 Execute Redis Strategy & Check Error Codes]:::p2Style
-    CheckStrategy -- Distroless Rule --> StrategyDirect[⚡ Direct Execution Strategy: docker exec containerId finalCmd]:::p2Style
-    CheckStrategy -- Shell Fallback Rule --> StrategyShell[🐚 Shell Wrapper Strategy: docker exec containerId sh -c JSON_CMD]:::p2Style
+    CheckStrategy -- Postgres Rule --> StrategyPostgres[Execute PostgreSQL Strategy & Check Error Signatures]:::p2Style
+    CheckStrategy -- MySQL Rule --> StrategyMySQL[Execute MySQL Strategy & Check Error Signatures]:::p2Style
+    CheckStrategy -- Redis Rule --> StrategyRedis[Execute Redis Strategy & Check Error Codes]:::p2Style
+    CheckStrategy -- Distroless Rule --> StrategyDirect[Direct Execution Strategy: docker exec containerId finalCmd]:::p2Style
+    CheckStrategy -- Shell Fallback Rule --> StrategyShell[Shell Wrapper Strategy: docker exec containerId sh -c JSON_CMD]:::p2Style
     
-    StrategyPostgres --> EvaluateOutput[📊 Evaluate Exit Code & Response Output]:::outputStyle
+    StrategyPostgres --> EvaluateOutput[Evaluate Exit Code & Response Output]:::outputStyle
     StrategyMySQL --> EvaluateOutput
     StrategyRedis --> EvaluateOutput
     StrategyDirect --> EvaluateOutput
     StrategyShell --> EvaluateOutput
 
-    EvaluateOutput --> BuildResponse([📊 Return Result JSON { exitCode, output }]):::outputStyle
+    EvaluateOutput --> BuildResponse([Return Result JSON exitCode output]):::outputStyle
 ```
 
 ### 3.2 Constants Architecture & Schema Definitions
@@ -466,7 +467,75 @@ async function POST(request: Request) {
 
 ---
 
-## 6. Production Verification & Maintenance
+## 6. Step-by-Step Developer Extension Guide
+
+### 6.1 How to Add a New Infrastructure Docker Image in 4 Steps
+
+#### Step 1: Register Constant Key (`docker-lab.constants.ts`)
+Add the new image ID key to `IMAGE_IDS` and add its official Docker Hub URL to `DOCKER_HUB_URLS`:
+```typescript
+export const IMAGE_IDS = {
+  // ...
+  MY_NEW_DB: "my-new-db",
+} as const;
+
+export const DOCKER_HUB_URLS: Record<string, string> = {
+  // ...
+  [IMAGE_IDS.MY_NEW_DB]: "https://hub.docker.com/r/organization/my-new-db",
+};
+```
+
+#### Step 2: Add Image Entity Definition (`docker-images.catalog.ts`)
+Declare default ports, environment variables, icon, and health probe:
+```typescript
+{
+  id: IMAGE_IDS.MY_NEW_DB,
+  name: "My New Database",
+  image: "organization/my-new-db",
+  defaultTag: "v1.0",
+  category: CATEGORIES.DATABASES,
+  description: "Enterprise high-performance database.",
+  icon: "💾",
+  officialUrl: DOCKER_HUB_URLS[IMAGE_IDS.MY_NEW_DB],
+  defaultConfig: createDefaultConfig(IMAGE_IDS.MY_NEW_DB, "v1.0", 8080),
+  healthProbe: { type: "http", port: 8080, path: "/health" }
+}
+```
+
+#### Step 3: Add Phase 1 Transformation Rule (`docker-exec.rules.ts`)
+Define native CLI transformation logic:
+```typescript
+{
+  id: RULE_IDS[IMAGE_IDS.MY_NEW_DB],
+  name: "My New Database CLI Rule",
+  category: RULE_CATEGORIES.TRANSFORM,
+  priority: RULE_PRIORITIES.CRITICAL,
+  enabled: true,
+  condition: (ctx) => ctx.containerName.toLowerCase().includes(IMAGE_IDS.MY_NEW_DB) || ctx.image.toLowerCase().includes("my-new-db"),
+  transform: (ctx) => `my-db-cli ${ctx.codeLines || ctx.rawCommand}`,
+}
+```
+
+#### Step 4: Add Phase 2 Execution Strategy Rule (`docker-exec-strategy.rules.ts`)
+Define execution strategy and error signature handling:
+```typescript
+{
+  id: `rule-strategy-${IMAGE_IDS.MY_NEW_DB}`,
+  name: "My New Database Execution Strategy",
+  priority: RULE_PRIORITIES.CRITICAL,
+  enabled: true,
+  condition: (ctx) => ctx.containerName.toLowerCase().includes(IMAGE_IDS.MY_NEW_DB) || ctx.image.toLowerCase().includes("my-new-db"),
+  execute: async (_ctx, containerId, finalCmd) => {
+    const { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${JSON.stringify(finalCmd)}`, 25000);
+    const combined = [stdout, stderr].map((s) => (s || "").trim()).filter(Boolean).join("\n");
+    return { stdout, stderr, isErrorExit: Boolean(stderr && !stdout), output: combined || "(Command executed with no output)" };
+  },
+}
+```
+
+---
+
+## 7. Production Verification & Maintenance
 
 1. **Automated Compilation Guarantee**: Every code change is verified with `npm run build` using Next.js Turbopack compiler.
 2. **Container Cleanup Protocol**: Managed containers carry `--label managed-by=infra-gateway-docker-lab` and are automatically stopped and removed upon container deletion requests.
