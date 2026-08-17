@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { DOCKER_IMAGES_CATALOG } from "@/features/docker-lab/domain/docker-images.catalog";
 
 const execAsync = promisify(exec);
 
@@ -34,7 +35,10 @@ async function buildDockerRunCommand(config: any): Promise<{ commands: string[];
     network, replicas = 1, resources, restartPolicy, customCommand, labels = []
   } = config;
 
-  const image = config.image || imageId;
+  const catalogItem = DOCKER_IMAGES_CATALOG.find((img) => img.id === imageId);
+  const imageRepository = config.image || catalogItem?.image || imageId;
+  const imageTag = tag || catalogItem?.defaultTag || "latest";
+
   const commands: string[] = [];
   const containerNames: string[] = [];
   const baseName = sanitizeName(containerName || imageId);
@@ -75,7 +79,7 @@ async function buildDockerRunCommand(config: any): Promise<{ commands: string[];
     if (resources?.memoryMb) parts.push("--memory", `${resources.memoryMb}m`);
     if (restartPolicy && restartPolicy !== "no") parts.push("--restart", restartPolicy);
 
-    parts.push(`${image}:${tag || "latest"}`);
+    parts.push(`${imageRepository}:${imageTag}`);
 
     if (customCommand) parts.push(...customCommand.split(" "));
 
@@ -105,6 +109,11 @@ export async function POST(request: Request) {
 
       const { stdout, stderr } = await runCmd(commands[i], 120000);
 
+      if (!stdout && stderr && stderr.includes("Error response from daemon")) {
+        error = `Docker Execution Error: ${stderr.trim()}`;
+        break;
+      }
+
       await runCmd(`docker start ${targetName}`);
 
       const { stdout: inspectOut } = await runCmd(
@@ -119,31 +128,25 @@ export async function POST(request: Request) {
 
       const cleanContainerId = /^[a-f0-9]{12,64}$/i.test(rawHexId)
         ? rawHexId.substring(0, 12)
-        : (nameFromInspect || targetName);
-
-      if (!rawHexId && stderr) {
-        error = stderr;
-        continue;
-      }
+        : targetName;
 
       containers.push({
         containerId: cleanContainerId,
         containerName: nameFromInspect || targetName,
         replicaIndex: i + 1,
-        status,
+        status: status === "running" ? "running" : status,
         ports: portBindings,
       });
     }
 
-    if (containers.length === 0 && error) {
-      return NextResponse.json({ error: `Docker Execution Error: ${error}` }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error }, { status: 500 });
     }
 
     return NextResponse.json({
       imageId: config.imageId,
       containers,
       startedAt: new Date().toISOString(),
-      error,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

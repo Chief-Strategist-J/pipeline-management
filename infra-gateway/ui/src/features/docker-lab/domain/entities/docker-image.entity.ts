@@ -1,3 +1,5 @@
+import type { ImageId, CategoryKind } from "../constants/docker-lab.constants";
+
 export interface PortMapping {
   hostPort: number;
   containerPort: number;
@@ -58,62 +60,78 @@ export interface ExecutionResult {
   error?: string;
 }
 
-export interface TestResult {
-  containerId: string;
-  healthy: boolean;
-  latencyMs: number;
-  probeType: "tcp" | "http" | "exec";
-  probeOutput: string;
-  testedAt: string;
+export interface HealthProbe {
+  type: "tcp" | "http";
+  port: number;
+  path?: string;
 }
-
-export interface LogLine {
-  containerId: string;
-  timestamp: string;
-  stream: "stdout" | "stderr";
-  message: string;
-}
-
-export type ImageCategory =
-  | "Databases"
-  | "Messaging & Streaming"
-  | "Observability & Tracing"
-  | "Search Engines"
-  | "Proxy & Gateway"
-  | "Security & Identity"
-  | "Dev & Infrastructure"
-  | "AI & Vector DBs";
 
 export interface DockerImage {
   id: string;
   name: string;
   image: string;
   defaultTag: string;
-  category: ImageCategory;
+  category: string;
   description: string;
   icon: string;
   officialUrl: string;
   defaultConfig: ContainerConfig;
-  healthProbe: {
-    type: "tcp" | "http" | "exec";
-    port?: number;
-    path?: string;
-    command?: string[];
-  };
+  healthProbe?: HealthProbe;
 }
 
-export interface ExecuteImagePayload {
-  config: ContainerConfig;
-}
+export class DockerImageEntity implements DockerImage {
+  public readonly id: ImageId;
+  public readonly name: string;
+  public readonly image: string;
+  public readonly defaultTag: string;
+  public readonly category: CategoryKind;
+  public readonly description: string;
+  public readonly icon: string;
+  public readonly officialUrl: string;
+  public readonly defaultConfig: ContainerConfig;
+  public readonly healthProbe: HealthProbe;
 
-export interface TestContainerPayload {
-  containerId: string;
-  probeType: "tcp" | "http" | "exec";
-  port?: number;
-  path?: string;
-  command?: string[];
-}
+  constructor(params: {
+    id: ImageId;
+    name: string;
+    image: string;
+    defaultTag: string;
+    category: CategoryKind;
+    description: string;
+    icon: string;
+    defaultPort: number;
+    envVars?: EnvVar[];
+    volumes?: VolumeMount[];
+    healthProbe?: HealthProbe;
+  }) {
+    this.id = params.id;
+    this.name = params.name;
+    this.image = params.image;
+    this.defaultTag = params.defaultTag;
+    this.category = params.category;
+    this.description = params.description;
+    this.icon = params.icon;
+    this.officialUrl = params.image.includes("/")
+      ? `https://hub.docker.com/r/${params.image}`
+      : `https://hub.docker.com/_/${params.image}`;
 
-export interface StopContainerPayload {
-  containerId: string;
+    this.defaultConfig = {
+      imageId: params.id,
+      tag: params.defaultTag,
+      ports: params.defaultPort ? [{ hostPort: params.defaultPort, containerPort: params.defaultPort, protocol: "tcp" }] : [],
+      envVars: params.envVars || [],
+      volumes: params.volumes || [],
+      network: { mode: "bridge" },
+      replicas: 1,
+      resources: { cpus: "1.0", memoryMb: 1024 },
+      restartPolicy: "unless-stopped",
+      labels: [{ key: "managed-by", value: "infra-gateway-docker-lab" }],
+    };
+
+    this.healthProbe = params.healthProbe || { type: "tcp", port: params.defaultPort };
+  }
+
+  public static create(params: Parameters<typeof DockerImageEntity.prototype.constructor>[0]): DockerImageEntity {
+    return new DockerImageEntity(params);
+  }
 }
