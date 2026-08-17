@@ -21,9 +21,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "containerId and command are required" }, { status: 400 });
     }
 
-    const safeCmd = command.replace(/"/g, '\\"');
-    
-    let { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c "${safeCmd}"`, 15000);
+    const jsonCmd = JSON.stringify(command);
+    let { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${jsonCmd}`, 15000);
 
     if (!stdout && stderr && (stderr.includes("executable file not found") || stderr.includes("no such file"))) {
       const retryRes = await runCmd(`docker exec ${containerId} ${command}`, 15000);
