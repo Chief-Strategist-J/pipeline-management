@@ -1,3 +1,18 @@
+/**
+ * Docker Lab Container Execution API Route (/api/docker-lab/exec)
+ * 
+ * ALGORITHM / END-TO-END EXECUTION FLOW:
+ * Step 1: Parse { containerId, command } payload from POST request.
+ * Step 2: Inspect running container via `docker inspect` to extract live environment variables
+ *         (e.g., POSTGRES_USER, POSTGRES_DB, MYSQL_USER, MYSQL_ROOT_PASSWORD, MONGO_INITDB_ROOT_USERNAME).
+ * Step 3: Construct RuleContext object containing container metadata, live environment, and command syntax flags.
+ * Step 4: Pass RuleContext to Core Rules Engine (resolveFirstRuleTransform).
+ * Step 5: Rules Engine selects highest-priority matching rule from dockerExecRules (100 -> 10)
+ *         and transforms command (e.g. auto-wrapping SQL or expanding $PATH for native binaries).
+ * Step 6: Safely JSON stringify transformed command and execute inside container via `docker exec containerId sh -c ...`.
+ * Step 7: Combine stdout and stderr, return exitCode and output payload to client.
+ */
+
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";

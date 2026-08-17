@@ -1,3 +1,17 @@
+/**
+ * Core Rules Engine Evaluator
+ * 
+ * ALGORITHM / EXECUTION FLOW:
+ * 1. Filter out disabled rules (rule.enabled === true).
+ * 2. Sort remaining candidate rules in descending order of priority (e.g., 100 -> 90 -> 10).
+ * 3. Iterate through sorted rules:
+ *    a. Execute synchronous rule.condition(ctx).
+ *    b. If condition passes and rule.asyncCheck exists, await rule.asyncCheck(ctx).
+ *    c. If matched, push rule to matchedRules array.
+ * 4. Return array of matched rules.
+ * 5. resolveFirstRuleTransform selects highest-priority matching rule and applies rule.transform(ctx).
+ */
+
 import type { Rule, RuleContext } from "./rule.types";
 
 export async function evaluateRules(rules: Rule[], ctx: RuleContext): Promise<Rule[]> {
