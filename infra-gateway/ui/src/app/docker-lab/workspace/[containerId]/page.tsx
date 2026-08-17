@@ -16,11 +16,16 @@ export default function ContainerWorkspacePage({ params }: { params: Promise<{ c
     fetch(`/api/docker-lab/containers`)
       .then((res) => res.json())
       .then((data) => {
-        const found = (data.containers || []).find((c: any) => c.containerId === resolvedParams.containerId);
+        const list = Array.isArray(data) ? data : data.containers || [];
+        const found = list.find((c: any) =>
+          c.containerId === resolvedParams.containerId ||
+          c.containerName === resolvedParams.containerId ||
+          c.containerId?.startsWith(resolvedParams.containerId)
+        );
         if (found) {
           setContainerInfo({
             containerName: found.containerName || resolvedParams.containerId,
-            imageId: found.imageId || "default",
+            imageId: found.imageId || found.image || "default",
           });
         }
       })

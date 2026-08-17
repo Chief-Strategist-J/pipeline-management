@@ -116,7 +116,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
       const res = await fetch(`/api/docker-lab/logs?containerId=${containerId}&tail=200`);
       if (res.ok) {
         const data = await res.json();
-        setLogs(data.logs || []);
+        setLogs(Array.isArray(data) ? data : data.logs || []);
       }
     } catch {
       // Keep state clean

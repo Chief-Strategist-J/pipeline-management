@@ -14,14 +14,14 @@ async function runCmd(command: string, timeoutMs: number = 15000): Promise<{ std
 
 export async function GET() {
   const { stdout } = await runCmd(
-    `docker ps --filter "label=managed-by=infra-gateway-docker-lab" --format '{{.ID}}|{{.Names}}|{{.Status}}|{{.Ports}}|{{.Image}}'`
+    `docker ps --filter "label=managed-by=infra-gateway-docker-lab" --format '{{.ID}}|{{.Names}}|{{.Status}}|{{.Ports}}|{{.Image}}|{{.Label "image-id"}}'`
   );
 
   const containers = stdout
     .split("\n")
     .filter(Boolean)
     .map((line) => {
-      const [id, name, status, ports, image] = line.split("|");
+      const [id, name, status, ports, image, labelImageId] = line.split("|");
       return {
         containerId: id,
         containerName: name,
@@ -29,6 +29,7 @@ export async function GET() {
         status: status?.toLowerCase().includes("up") ? "running" : "exited",
         ports: ports ? ports.split(",").map((p: string) => p.trim()) : [],
         image,
+        imageId: labelImageId || image,
       };
     });
 
@@ -58,14 +59,16 @@ export async function DELETE(request: Request) {
     if (mountPaths.length > 0) {
       await runCmd(`mkdir -p ${backupPath}`);
       for (const mp of mountPaths) {
-        const safeName = mp.replace(/\//g, "_");
-        await runCmd(`docker cp ${containerId}:${mp} ${backupPath}/${safeName}`, 30000);
+        await runCmd(`docker cp ${containerId}:${mp} ${backupPath}/ || true`);
       }
     }
   }
 
-  await runCmd(`docker stop ${containerId}`, 15000);
-  await runCmd(`docker rm ${containerId}`, 10000);
+  await runCmd(`docker rm -f ${containerId}`);
 
-  return NextResponse.json({ success: true, backupPath });
+  return NextResponse.json({
+    success: true,
+    containerId,
+    backupPath,
+  });
 }
