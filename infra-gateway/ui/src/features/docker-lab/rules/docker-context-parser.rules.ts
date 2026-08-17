@@ -12,8 +12,8 @@ export interface ContextParserRule {
 
 export const dockerContextParserRules: ContextParserRule[] = [
   {
-    id: "rule-context-sql-database",
-    name: "SQL Relational Database Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.POSTGRES}`,
+    name: `${IMAGE_IDS.POSTGRES} SQL Relational Database Context Parser Rule`,
     priority: RULE_PRIORITIES.CRITICAL,
     enabled: true,
     condition: (info) => {
@@ -23,9 +23,9 @@ export const dockerContextParserRules: ContextParserRule[] = [
         name.includes(IMAGE_IDS.POSTGRES) || img.includes(IMAGE_IDS.POSTGRES) ||
         name.includes(IMAGE_IDS.MYSQL) || img.includes(IMAGE_IDS.MYSQL) ||
         name.includes(IMAGE_IDS.MARIADB) || img.includes(IMAGE_IDS.MARIADB) ||
-        name.includes("cockroach") || img.includes("cockroach") ||
-        name.includes("timescale") || img.includes("timescale") ||
-        name.includes("clickhouse") || img.includes("clickhouse")
+        name.includes(IMAGE_IDS.COCKROACHDB) || img.includes(IMAGE_IDS.COCKROACHDB) ||
+        name.includes(IMAGE_IDS.TIMESCALEDB) || img.includes(IMAGE_IDS.TIMESCALEDB) ||
+        name.includes(IMAGE_IDS.CLICKHOUSE) || img.includes(IMAGE_IDS.CLICKHOUSE)
       );
     },
     parse: (info, rawCommand) => {
@@ -48,8 +48,8 @@ export const dockerContextParserRules: ContextParserRule[] = [
     },
   },
   {
-    id: "rule-context-cql-database",
-    name: "Cassandra & ScyllaDB CQL Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.CASSANDRA}`,
+    name: `${IMAGE_IDS.CASSANDRA} & ${IMAGE_IDS.SCYLLADB} CQL Context Parser Rule`,
     priority: RULE_PRIORITIES.CRITICAL - 5,
     enabled: true,
     condition: (info) => {
@@ -80,8 +80,8 @@ export const dockerContextParserRules: ContextParserRule[] = [
     },
   },
   {
-    id: "rule-context-redis-inmemory",
-    name: "Redis In-Memory Key-Value Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.REDIS}`,
+    name: `${IMAGE_IDS.REDIS} In-Memory Key-Value Context Parser Rule`,
     priority: RULE_PRIORITIES.CRITICAL - 10,
     enabled: true,
     condition: (info) => {
@@ -108,14 +108,14 @@ export const dockerContextParserRules: ContextParserRule[] = [
     },
   },
   {
-    id: "rule-context-mongo-document",
-    name: "MongoDB Document Database Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.MONGODB}`,
+    name: `${IMAGE_IDS.MONGODB} Document Database Context Parser Rule`,
     priority: RULE_PRIORITIES.CRITICAL - 15,
     enabled: true,
     condition: (info) => {
       const name = info.name.toLowerCase();
       const img = info.image.toLowerCase();
-      return name.includes("mongo") || img.includes("mongo");
+      return name.includes(IMAGE_IDS.MONGODB) || img.includes("mongo");
     },
     parse: (info, rawCommand) => {
       const cleaned = (rawCommand || "").trim();
@@ -136,8 +136,8 @@ export const dockerContextParserRules: ContextParserRule[] = [
     },
   },
   {
-    id: "rule-context-cypher-graph",
-    name: "Neo4j Graph Cypher Query Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.NEO4J}`,
+    name: `${IMAGE_IDS.NEO4J} Graph Cypher Query Context Parser Rule`,
     priority: RULE_PRIORITIES.HIGH,
     enabled: true,
     condition: (info) => {
@@ -164,8 +164,8 @@ export const dockerContextParserRules: ContextParserRule[] = [
     },
   },
   {
-    id: "rule-context-vector-ai",
-    name: "AI & Vector Engines Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.QDRANT}`,
+    name: `AI Vector Engines Context Parser Rule`,
     priority: RULE_PRIORITIES.HIGH - 5,
     enabled: true,
     condition: (info) => {
@@ -197,8 +197,8 @@ export const dockerContextParserRules: ContextParserRule[] = [
     },
   },
   {
-    id: "rule-context-kafka-messaging",
-    name: "Apache Kafka Messaging Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.KAFKA}`,
+    name: `${IMAGE_IDS.KAFKA} Messaging Context Parser Rule`,
     priority: RULE_PRIORITIES.MEDIUM,
     enabled: true,
     condition: (info) => {
@@ -225,8 +225,8 @@ export const dockerContextParserRules: ContextParserRule[] = [
     },
   },
   {
-    id: "rule-context-search-elasticsearch",
-    name: "Elasticsearch & Search Engines Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.ELASTICSEARCH}`,
+    name: `${IMAGE_IDS.ELASTICSEARCH} Search Engines Context Parser Rule`,
     priority: RULE_PRIORITIES.MEDIUM - 5,
     enabled: true,
     condition: (info) => {
@@ -234,9 +234,9 @@ export const dockerContextParserRules: ContextParserRule[] = [
       const img = info.image.toLowerCase();
       return (
         name.includes("elastic") || img.includes("elastic") ||
-        name.includes("opensearch") || img.includes("opensearch") ||
-        name.includes("meili") || img.includes("meili") ||
-        name.includes("typesense") || img.includes("typesense")
+        name.includes(IMAGE_IDS.OPENSEARCH) || img.includes(IMAGE_IDS.OPENSEARCH) ||
+        name.includes(IMAGE_IDS.MEILISEARCH) || img.includes(IMAGE_IDS.MEILISEARCH) ||
+        name.includes(IMAGE_IDS.TYPESENSE) || img.includes(IMAGE_IDS.TYPESENSE)
       );
     },
     parse: (info, rawCommand) => {
@@ -258,8 +258,8 @@ export const dockerContextParserRules: ContextParserRule[] = [
     },
   },
   {
-    id: "rule-context-security-vault",
-    name: "HashiCorp Vault Security Context Parser Rule",
+    id: `rule-context-${IMAGE_IDS.VAULT}`,
+    name: `${IMAGE_IDS.VAULT} Security Context Parser Rule`,
     priority: RULE_PRIORITIES.MEDIUM - 10,
     enabled: true,
     condition: (info) => {

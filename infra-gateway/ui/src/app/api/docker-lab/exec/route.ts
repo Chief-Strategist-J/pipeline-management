@@ -1,19 +1,3 @@
-/**
- * Docker Lab Container Execution API Route (/api/docker-lab/exec)
- * 
- * ALGORITHM / END-TO-END EXECUTION FLOW:
- * Step 1: Parse { containerId, command } payload from POST request.
- * Step 2: Inspect running container via `docker inspect` to extract live environment variables.
- * Step 3: Rule Engine Phase 0 (Context Parsing): Delegate command cleaning, comment stripping,
- *         and query classification (isSql, codeLines) to dockerContextParserRules based on container type.
- * Step 4: Rule Engine Phase 1 (Command Transformation): Pass RuleContext to resolveFirstRuleTransform.
- *         Selects highest-priority rule from dockerExecRules (100 -> 10) to transform command.
- * Step 5: Rule Engine Phase 2 (Execution Strategy & Post-Processing): Pass RuleContext & transformed command
- *         to resolveExecutionStrategy (dockerExecStrategyRules).
- * Step 6: Execute container process via selected strategy (distroless direct vs shell wrapper with fallback).
- * Step 7: Evaluate image-specific error signatures and return formatted JSON response { exitCode, output }.
- */
-
 import { NextResponse } from "next/server";
 import { resolveFirstRuleTransform } from "@/core/rules-engine/evaluate";
 import { dockerContextParserRules, resolveRuleContext } from "@/features/docker-lab/rules/docker-context-parser.rules";

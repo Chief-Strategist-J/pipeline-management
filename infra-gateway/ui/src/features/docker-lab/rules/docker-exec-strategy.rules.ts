@@ -244,11 +244,11 @@ export const dockerExecStrategyRules: ExecutionStrategyRule[] = [
     },
   },
   {
-    id: `rule-strategy-${IMAGE_IDS.RABBITMQ}`,
-    name: "RabbitMQ Strategy",
+    id: `rule-strategy-${IMAGE_IDS.TEMPO}`,
+    name: "Grafana Tempo Strategy",
     priority: RULE_PRIORITIES.CRITICAL,
     enabled: true,
-    condition: (ctx) => ctx.containerName.toLowerCase().includes(IMAGE_IDS.RABBITMQ) || ctx.image.toLowerCase().includes(IMAGE_IDS.RABBITMQ),
+    condition: (ctx) => ctx.containerName.toLowerCase().includes("tempo") || ctx.image.toLowerCase().includes("tempo"),
     execute: async (_ctx, containerId, finalCmd) => {
       const { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${JSON.stringify(finalCmd)}`, 25000);
       const combined = [stdout, stderr].map((s) => (s || "").trim()).filter(Boolean).join("\n");
@@ -256,82 +256,21 @@ export const dockerExecStrategyRules: ExecutionStrategyRule[] = [
     },
   },
   {
-    id: `rule-strategy-${IMAGE_IDS.NATS}`,
-    name: "NATS Server Strategy",
+    id: `rule-strategy-${IMAGE_IDS.LOKI}`,
+    name: "Grafana Loki Strategy",
     priority: RULE_PRIORITIES.CRITICAL,
     enabled: true,
-    condition: (ctx) => ctx.containerName.toLowerCase().includes(IMAGE_IDS.NATS) || ctx.image.toLowerCase().includes(IMAGE_IDS.NATS),
+    condition: (ctx) => ctx.containerName.toLowerCase().includes("loki") || ctx.image.toLowerCase().includes("loki"),
     execute: async (_ctx, containerId, finalCmd) => {
       const { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${JSON.stringify(finalCmd)}`, 25000);
       const combined = [stdout, stderr].map((s) => (s || "").trim()).filter(Boolean).join("\n");
       return { stdout, stderr, isErrorExit: Boolean(stderr && !stdout), output: combined || "(Command executed with no output)" };
     },
   },
-  {
-    id: `rule-strategy-${IMAGE_IDS.PULSAR}`,
-    name: "Apache Pulsar Strategy",
-    priority: RULE_PRIORITIES.CRITICAL,
-    enabled: true,
-    condition: (ctx) => ctx.containerName.toLowerCase().includes(IMAGE_IDS.PULSAR) || ctx.image.toLowerCase().includes(IMAGE_IDS.PULSAR),
-    execute: async (_ctx, containerId, finalCmd) => {
-      const { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${JSON.stringify(finalCmd)}`, 25000);
-      const combined = [stdout, stderr].map((s) => (s || "").trim()).filter(Boolean).join("\n");
-      return { stdout, stderr, isErrorExit: Boolean(stderr && !stdout), output: combined || "(Command executed with no output)" };
-    },
-  },
-  {
-    id: `rule-strategy-${IMAGE_IDS.ZOOKEEPER}`,
-    name: "Apache ZooKeeper Strategy",
-    priority: RULE_PRIORITIES.CRITICAL,
-    enabled: true,
-    condition: (ctx) => ctx.containerName.toLowerCase().includes(IMAGE_IDS.ZOOKEEPER) || ctx.image.toLowerCase().includes(IMAGE_IDS.ZOOKEEPER),
-    execute: async (_ctx, containerId, finalCmd) => {
-      const { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${JSON.stringify(finalCmd)}`, 25000);
-      const combined = [stdout, stderr].map((s) => (s || "").trim()).filter(Boolean).join("\n");
-      return { stdout, stderr, isErrorExit: Boolean(stderr && !stdout), output: combined || "(Command executed with no output)" };
-    },
-  },
-  {
-    id: `rule-strategy-${IMAGE_IDS.SCHEMA_REGISTRY}`,
-    name: "Schema Registry Strategy",
-    priority: RULE_PRIORITIES.CRITICAL,
-    enabled: true,
-    condition: (ctx) => ctx.containerName.toLowerCase().includes("schema-registry") || ctx.image.toLowerCase().includes("schema-registry"),
-    execute: async (_ctx, containerId, finalCmd) => {
-      const { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${JSON.stringify(finalCmd)}`, 25000);
-      const combined = [stdout, stderr].map((s) => (s || "").trim()).filter(Boolean).join("\n");
-      return { stdout, stderr, isErrorExit: Boolean(stderr && !stdout), output: combined || "(Command executed with no output)" };
-    },
-  },
-  {
-    id: `rule-strategy-${IMAGE_IDS.KAFKA_UI}`,
-    name: "Kafka UI Strategy",
-    priority: RULE_PRIORITIES.CRITICAL,
-    enabled: true,
-    condition: (ctx) => ctx.containerName.toLowerCase().includes("kafka-ui") || ctx.image.toLowerCase().includes("kafka-ui"),
-    execute: async (_ctx, containerId, finalCmd) => {
-      const { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${JSON.stringify(finalCmd)}`, 25000);
-      const combined = [stdout, stderr].map((s) => (s || "").trim()).filter(Boolean).join("\n");
-      return { stdout, stderr, isErrorExit: Boolean(stderr && !stdout), output: combined || "(Command executed with no output)" };
-    },
-  },
-  {
-    id: `rule-strategy-${IMAGE_IDS.MOSQUITTO}`,
-    name: "Mosquitto MQTT Strategy",
-    priority: RULE_PRIORITIES.CRITICAL,
-    enabled: true,
-    condition: (ctx) => ctx.containerName.toLowerCase().includes(IMAGE_IDS.MOSQUITTO) || ctx.image.toLowerCase().includes(IMAGE_IDS.MOSQUITTO),
-    execute: async (_ctx, containerId, finalCmd) => {
-      const { stdout, stderr } = await runCmd(`docker exec ${containerId} sh -c ${JSON.stringify(finalCmd)}`, 25000);
-      const combined = [stdout, stderr].map((s) => (s || "").trim()).filter(Boolean).join("\n");
-      return { stdout, stderr, isErrorExit: Boolean(stderr && !stdout), output: combined || "(Command executed with no output)" };
-    },
-  },
-
   {
     id: `rule-strategy-${IMAGE_IDS.GRAFANA}`,
     name: "Grafana Strategy",
-    priority: RULE_PRIORITIES.CRITICAL,
+    priority: RULE_PRIORITIES.CRITICAL - 5,
     enabled: true,
     condition: (ctx) => ctx.containerName.toLowerCase().includes(IMAGE_IDS.GRAFANA) || ctx.image.toLowerCase().includes(IMAGE_IDS.GRAFANA),
     execute: async (_ctx, containerId, finalCmd) => {
