@@ -435,31 +435,43 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
               <div className="space-y-3">
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300">
                   <p className="font-bold flex items-center gap-1.5">
-                    <Code className="h-4 w-4" /> Quick Command Cheat Sheet
+                    <Code className="h-4 w-4" /> Quick Command Reference Cheat Sheet
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Click any command to execute it directly in the terminal shell.
+                    Click any command card to populate it into the prompt below, or click "Run Now" to execute immediately.
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   {helpCommands.map((item, idx) => (
-                    <button
+                    <div
                       key={idx}
-                      onClick={() => handleExecuteCommand(item.command)}
-                      className="w-full text-left p-3 bg-slate-900/80 hover:bg-slate-900 rounded-xl border border-white/5 hover:border-emerald-500/40 transition-all group"
+                      onClick={() => setCommand(item.command)}
+                      className="w-full text-left p-3 bg-slate-900/80 hover:bg-slate-900 rounded-xl border border-white/5 hover:border-emerald-500/40 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors">
                           {item.label}
                         </span>
-                        <Badge variant="neutral">{item.category}</Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="neutral">{item.category}</Badge>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExecuteCommand(item.command);
+                            }}
+                            className="px-2 py-0.5 text-[10px] font-bold bg-blue-600/30 hover:bg-blue-600/60 text-blue-200 border border-blue-500/30 rounded transition-all"
+                            title="Execute Immediately"
+                          >
+                            Run Now
+                          </button>
+                        </div>
                       </div>
-                      <p className="text-[11px] font-mono text-slate-400 mt-1 bg-slate-950 p-1.5 rounded border border-white/5 break-all">
+                      <p className="text-[11px] font-mono text-slate-300 mt-1.5 bg-slate-950 p-1.5 rounded border border-white/5 break-all">
                         {item.command}
                       </p>
                       <p className="text-[10px] text-slate-500 mt-1">{item.description}</p>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
