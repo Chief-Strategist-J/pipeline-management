@@ -494,3 +494,99 @@ Fifteen lines: fully-wired CRUD, resilient (retry + cache + circuit breaker), tr
 Everything above keeps the **codebase** scalable — hundreds of features, many engineers, low coupling, fast CI, minimal repetition. That's what design patterns actually govern.
 
 Serving genuinely massive **traffic** (millions of concurrent requests) is overwhelmingly a CDN/edge/backend/database problem — sharding, load balancing, edge caching. The frontend's job there is narrower but concrete: be stateless per-request, cacheable, and edge-renderable. Concretely, in this stack that means leaning on Next.js's route-segment `revalidate`/ISR, streaming SSR, and keeping client bundles small via the per-feature code-splitting from doc 1 — so the origin does as little work as possible per request. Worth keeping the two separate so you're solving traffic-scale problems in the infra layer and codebase-scale problems in the patterns above, rather than expecting one to fix the other.
+
+---
+
+## 12. Docker Lab 3-Phase Rules Engine Architecture
+
+This section documents the production implementation of the **3-Phase Declarative Rules Engine** used in `infra-gateway` for dynamic container execution, native CLI routing, and execution strategy post-processing across all 47+ infrastructure Docker images.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as UI Shell / API Client
+    participant API as /api/docker-lab/exec
+    participant Inspector as Container Runtime Inspector
+    participant Phase0 as Phase 0: Context Parser Engine (dockerContextParserRules)
+    participant Phase1 as Phase 1: Command Rules Engine (dockerExecRules)
+    participant Phase2 as Phase 2: Strategy Rules Engine (dockerExecStrategyRules)
+    participant Daemon as Docker Daemon
+
+    Client->>API: POST { containerId, command }
+    API->>Inspector: docker inspect containerId
+    Inspector-->>API: ContainerInfo { name, image, env }
+    API->>Phase0: resolveRuleContext(dockerContextParserRules, info, rawCommand)
+    Phase0-->>API: RuleContext { containerName, image, env, rawCommand, codeLines, isSql }
+    API->>Phase1: resolveFirstRuleTransform(dockerExecRules, ruleContext)
+    Phase1-->>API: Transformed Command (e.g., psql -U admin -d prod -c "SELECT...")
+    API->>Phase2: resolveExecutionStrategy(dockerExecStrategyRules, ruleContext, containerId, finalCmd)
+    Phase2->>Daemon: Execute strategy (sh -c wrapper or direct execution)
+    Daemon-->>Phase2: Return stdout, stderr
+    Phase2-->>API: ExecutionStrategyResult { output, isErrorExit }
+    API-->>Client: Return JSON { exitCode, output }
+```
+
+### 12.1 Pseudocode Algorithms
+
+#### Phase 0: Context Preparation Rules Engine (`dockerContextParserRules`)
+```typescript
+/**
+ * PSEUDOCODE: Context Preparation & Command Cleaning Resolution
+ * Input: rules: ContextParserRule[], info: ContainerInfo, rawCommand: string
+ * Output: RuleContext { containerName, image, env, rawCommand, codeLines, isSql }
+ */
+function resolveRuleContext(rules, info, rawCommand):
+    activeRules = rules.filter(r => r.enabled).sort((a, b) => b.priority - a.priority)
+    for rule in activeRules:
+        if rule.condition(info, rawCommand) == true:
+            return rule.parse(info, rawCommand)
+    return fallbackParser(info, rawCommand)
+```
+
+#### Phase 1: Command Transformation Rules Engine (`dockerExecRules`)
+```typescript
+/**
+ * PSEUDOCODE: Command Transformation Resolution
+ * Input: rules: Rule[], ctx: RuleContext
+ * Output: Transformed shell command string
+ */
+function resolveFirstRuleTransform(rules, ctx):
+    activeRules = rules.filter(r => r.enabled).sort((a, b) => b.priority - a.priority)
+    for rule in activeRules:
+        if rule.condition(ctx) == true:
+            if rule.asyncCheck != null and await rule.asyncCheck(ctx) == false:
+                continue
+            return rule.transform(ctx)
+    return ctx.rawCommand
+```
+
+#### Phase 2: Execution Strategy & Post-Processing Rules Engine (`dockerExecStrategyRules`)
+```typescript
+/**
+ * PSEUDOCODE: Execution Strategy & Error Exit Determination
+ * Input: strategyRules: ExecutionStrategyRule[], ctx: RuleContext, containerId: string, finalCmd: string
+ * Output: ExecutionStrategyResult { stdout, stderr, isErrorExit, output }
+ */
+function resolveExecutionStrategy(strategyRules, ctx, containerId, finalCmd):
+    active = strategyRules.filter(r => r.enabled).sort((a, b) => b.priority - a.priority)
+    for rule in active:
+        if rule.condition(ctx) == true:
+            return await rule.execute(ctx, containerId, finalCmd)
+    return defaultFallbackStrategy(ctx, containerId, finalCmd)
+```
+
+#### API Endpoint Execution Flow (`/api/docker-lab/exec`)
+```typescript
+/**
+ * PSEUDOCODE: API Endpoint Handler
+ */
+async function POST(request):
+    { containerId, command } = request.json()
+    info = await inspectContainer(containerId)
+    
+    ruleContext = resolveRuleContext(dockerContextParserRules, info, command)
+    finalCmd = await resolveFirstRuleTransform(dockerExecRules, ruleContext)
+    result = await resolveExecutionStrategy(dockerExecStrategyRules, ruleContext, containerId, finalCmd)
+    
+    return Response.json({ exitCode: result.isErrorExit ? 1 : 0, output: result.output })
+```

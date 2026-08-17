@@ -4,7 +4,8 @@
  * ALGORITHM / END-TO-END EXECUTION FLOW:
  * Step 1: Parse { containerId, command } payload from POST request.
  * Step 2: Inspect running container via `docker inspect` to extract live environment variables.
- * Step 3: Construct RuleContext object containing container metadata, live environment, and command syntax flags.
+ * Step 3: Rule Engine Phase 0 (Context Parsing): Delegate command cleaning, comment stripping,
+ *         and query classification (isSql, codeLines) to dockerContextParserRules based on container type.
  * Step 4: Rule Engine Phase 1 (Command Transformation): Pass RuleContext to resolveFirstRuleTransform.
  *         Selects highest-priority rule from dockerExecRules (100 -> 10) to transform command.
  * Step 5: Rule Engine Phase 2 (Execution Strategy & Post-Processing): Pass RuleContext & transformed command
@@ -15,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { resolveFirstRuleTransform } from "@/core/rules-engine/evaluate";
-import type { RuleContext } from "@/core/rules-engine/rule.types";
+import { dockerContextParserRules, resolveRuleContext } from "@/features/docker-lab/rules/docker-context-parser.rules";
 import { dockerExecRules } from "@/features/docker-lab/rules/docker-exec.rules";
 import { dockerExecStrategyRules, resolveExecutionStrategy } from "@/features/docker-lab/rules/docker-exec-strategy.rules";
 import { runCmd } from "@/features/docker-lab/utils/exec.utils";
@@ -59,19 +60,7 @@ export async function POST(request: Request) {
     }
 
     const info = await inspectContainer(containerId);
-    let cleaned = (command || "").trim();
-    const lines = cleaned.split("\n").map((l: string) => l.trim()).filter((l: string) => l && !l.startsWith("--") && !l.startsWith("//"));
-    const codeLines = lines.join(" ");
-    const isSql = /^(select|create|insert|update|delete|drop|alter|show|grant|revoke|with|\\d|\\l)\b/i.test(codeLines);
-
-    const ruleContext: RuleContext = {
-      containerName: info.name,
-      image: info.image,
-      env: info.env,
-      rawCommand: command,
-      codeLines,
-      isSql,
-    };
+    const ruleContext = resolveRuleContext(dockerContextParserRules, info, command);
 
     const finalCmd = await resolveFirstRuleTransform(dockerExecRules, ruleContext);
     const result = await resolveExecutionStrategy(dockerExecStrategyRules, ruleContext, containerId, finalCmd);
