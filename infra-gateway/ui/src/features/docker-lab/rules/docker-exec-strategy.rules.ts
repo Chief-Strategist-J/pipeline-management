@@ -1,3 +1,15 @@
+/**
+ * Phase 2: Execution Strategy & Error Exit Post-Processing Rules Engine (dockerExecStrategyRules)
+ * 
+ * ALGORITHM:
+ * 1. Filter enabled strategy rules (rule.enabled === true).
+ * 2. Sort rules by rule.priority descending (100 -> 10).
+ * 3. Match rule.condition(ctx) against container image name and metadata.
+ * 4. Execute container command via base image strategy (Distroless Direct Exec vs Standard Shell Wrapper).
+ * 5. Evaluate container-specific error signatures (psql error, ERROR 1045, MongoServerError, Redis error)
+ *    and return ExecutionStrategyResult { stdout, stderr, isErrorExit, output }.
+ */
+
 import type { RuleContext } from "@/core/rules-engine/rule.types";
 import { IMAGE_IDS, RULE_PRIORITIES } from "../constants/docker-lab.constants";
 import { runCmd } from "../utils/exec.utils";

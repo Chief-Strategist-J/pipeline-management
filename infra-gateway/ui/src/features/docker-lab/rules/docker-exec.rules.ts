@@ -1,7 +1,19 @@
+/**
+ * Phase 1: Command Syntax Transformation Rules Engine (dockerExecRules)
+ * 
+ * ALGORITHM:
+ * 1. Filter enabled rules (rule.enabled === true).
+ * 2. Sort rules by rule.priority descending (100 -> 10).
+ * 3. Evaluate rule.condition(ctx) against container image name and command.
+ * 4. Transform raw user query into native CLI invocation (psql, mysql, mongosh, redis-cli, kafka-topics.sh, cqlsh, etc.).
+ * 5. Inject container $PATH expansion to ensure native binaries are located regardless of base OS structure.
+ */
+
 import type { Rule } from "@/core/rules-engine/rule.types";
 import { IMAGE_IDS, RULE_CATEGORIES, RULE_PRIORITIES, RULE_IDS } from "../constants/docker-lab.constants";
 
 export const dockerExecRules: Rule[] = [
+
   {
     id: RULE_IDS[IMAGE_IDS.REDIS],
     name: "Redis Server CLI Rule",

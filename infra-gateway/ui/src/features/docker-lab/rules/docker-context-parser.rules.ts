@@ -1,3 +1,14 @@
+/**
+ * Phase 0: Context Preparation & Dynamic Parsing Rules Engine (dockerContextParserRules)
+ * 
+ * ALGORITHM:
+ * 1. Filter enabled rules (rule.enabled === true).
+ * 2. Sort rules by rule.priority descending (100 -> 90 -> 10).
+ * 3. Match rule.condition(info, rawCommand) against container image name and command.
+ * 4. Parse container-specific comment formats (-- for SQL, # for Redis/Kafka, // for Mongo/JSON).
+ * 5. Return standardized RuleContext object containing containerName, image, env, rawCommand, codeLines, and isSql.
+ */
+
 import type { RuleContext } from "@/core/rules-engine/rule.types";
 import { IMAGE_IDS, RULE_PRIORITIES } from "../constants/docker-lab.constants";
 

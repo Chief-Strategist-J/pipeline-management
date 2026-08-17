@@ -1,3 +1,24 @@
+/**
+ * Docker Lab Container Execution Gateway Route (/api/docker-lab/exec)
+ * 
+ * END-TO-END 3-PHASE RULES ENGINE ALGORITHM:
+ * 
+ * Phase 0: Context Preparation & Dynamic Parsing (dockerContextParserRules)
+ *   1. Inspect target container runtime via `docker inspect` to extract dynamic environment variables.
+ *   2. Evaluate `dockerContextParserRules` by container image/name matching (Priority 90 -> 10).
+ *   3. Strip container-specific comment formats (-- for SQL, # for Redis/Kafka, // for Mongo/JSON) and parse query classification flags (isSql).
+ * 
+ * Phase 1: Native CLI Command Syntax Transformation (dockerExecRules)
+ *   1. Evaluate `dockerExecRules` using `resolveFirstRuleTransform` (Priority 100 -> 10).
+ *   2. Transform raw user queries into native CLI binary invocations (psql, mysql, mongosh, redis-cli, kafka-topics.sh, cqlsh, etc.).
+ *   3. Inject expanded container PATH environment variables.
+ * 
+ * Phase 2: Execution Strategy & Error Exit Post-Processing (dockerExecStrategyRules)
+ *   1. Evaluate `dockerExecStrategyRules` using `resolveExecutionStrategy` (Priority 100 -> 10).
+ *   2. Execute container command via base image strategy (Distroless Direct Exec vs Standard Shell Wrapper).
+ *   3. Evaluate container-specific error signatures and return formatted JSON { exitCode, output }.
+ */
+
 import { NextResponse } from "next/server";
 import { resolveFirstRuleTransform } from "@/core/rules-engine/evaluate";
 import { dockerContextParserRules, resolveRuleContext } from "@/features/docker-lab/rules/docker-context-parser.rules";
