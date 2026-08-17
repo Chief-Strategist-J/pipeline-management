@@ -120,7 +120,7 @@ export class DockerImageEntity implements DockerImage {
   public readonly icon: string;
   public readonly officialUrl: string;
   public readonly defaultConfig: ContainerConfig;
-  public readonly healthProbe: HealthProbe;
+  public readonly healthProbe?: HealthProbe;
 
   constructor(params: CreateDockerImageParams) {
     this.id = params.id;
