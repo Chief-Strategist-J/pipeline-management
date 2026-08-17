@@ -21,7 +21,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-500/30 selection:text-blue-200`}>
         <Providers>
           <Navbar />
-          <main className="flex-1 max-w-7xl w-full mx-auto p-6">{children}</main>
+          <main className="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 py-4">{children}</main>
           <footer className="border-t border-white/5 py-6 text-center text-xs text-slate-500 font-mono">
             Infrastructure Gateway Platform &bull; OCSP Stapling Engine (Feature #16)
           </footer>

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { GlassCard } from "@/shared/ui/GlassCard";
 import { Button } from "@/shared/ui/Button";
 import { Badge } from "@/shared/ui/Badge";
 import {
@@ -20,13 +19,14 @@ import {
   CheckCircle2,
   AlertCircle,
   Radio,
-  ExternalLink,
   Code,
   Sparkles,
+  Download,
+  Pause,
+  Zap,
 } from "lucide-react";
-import { DOCKER_HELP_COMMANDS, DEFAULT_HELP_COMMANDS, type HelpCommand } from "../../constants/docker-help.constants";
+import { DOCKER_HELP_COMMANDS, DEFAULT_HELP_COMMANDS } from "../../constants/docker-help.constants";
 import { DOCKER_IMAGES_CATALOG } from "../../domain/docker-images.catalog";
-
 
 interface ContainerWorkspaceProps {
   containerId: string;
@@ -52,7 +52,6 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
   containerId,
   containerName,
   imageId = "default",
-  imageName = "Docker Service",
   onBackToLab,
 }) => {
   const [activeTab, setActiveTab] = useState<"logs" | "help" | "specs">("logs");
@@ -66,7 +65,10 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [logFilter, setLogFilter] = useState("");
   const [isFetchingLogs, setIsFetchingLogs] = useState(false);
+  const [isAutoRefreshLogs, setIsAutoRefreshLogs] = useState(true);
+  const [autoScrollLogs, setAutoScrollLogs] = useState(true);
 
+  const [envFilter, setEnvFilter] = useState("");
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [isTestingProbe, setIsTestingProbe] = useState(false);
   const [containerInfo, setContainerInfo] = useState<{ ports: string[]; env: Record<string, string>; status: string }>({
@@ -86,19 +88,36 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
   }, [containerId]);
 
   useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isAutoRefreshLogs) {
+      timer = setInterval(() => {
+        fetchLogsSilently();
+      }, 2000);
+    }
+    return () => clearInterval(timer);
+  }, [containerId, isAutoRefreshLogs]);
+
+  useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [history, isExecuting]);
 
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+    if (autoScrollLogs) {
+      logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs, autoScrollLogs]);
 
   const fetchContainerDetails = async () => {
     try {
       const res = await fetch(`/api/docker-lab/containers`);
       if (res.ok) {
         const data = await res.json();
-        const found = (data.containers || []).find((c: any) => c.containerId === containerId || c.containerName === containerName);
+        const list = Array.isArray(data) ? data : data.containers || [];
+        const found = list.find((c: any) =>
+          c.containerId === containerId ||
+          c.containerName === containerName ||
+          c.containerId?.startsWith(containerId)
+        );
         if (found) {
           setContainerInfo({
             ports: found.ports || [],
@@ -108,23 +127,26 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
         }
       }
     } catch {
-      // Fallback state intact
+      // Fallback intact
     }
   };
 
-  const fetchLogs = async () => {
-    setIsFetchingLogs(true);
+  const fetchLogsSilently = async () => {
     try {
-      const res = await fetch(`/api/docker-lab/logs?containerId=${containerId}&tail=200`);
+      const res = await fetch(`/api/docker-lab/logs?containerId=${containerId}&tail=300`);
       if (res.ok) {
         const data = await res.json();
         setLogs(Array.isArray(data) ? data : data.logs || []);
       }
     } catch {
       // Keep state clean
-    } finally {
-      setIsFetchingLogs(false);
     }
+  };
+
+  const fetchLogs = async () => {
+    setIsFetchingLogs(true);
+    await fetchLogsSilently();
+    setIsFetchingLogs(false);
   };
 
   const runTestProbe = async () => {
@@ -230,30 +252,54 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
     setTimeout(() => setCopiedIdx(null), 2000);
   };
 
+  const downloadTerminalLogs = () => {
+    const text = history.map((h) => `[$ ${h.command} - ${h.timestamp}]\n${h.output}\n`).join("\n---\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `terminal-session-${containerId.substring(0, 8)}.log`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filteredLogs = logs.filter((l) =>
     logFilter ? l.message.toLowerCase().includes(logFilter.toLowerCase()) : true
   );
 
+  const catalogItem = DOCKER_IMAGES_CATALOG.find((img) => img.id === imageId);
+
+  const filteredEnvVars = (catalogItem?.defaultConfig?.envVars || []).filter((env) =>
+    envFilter
+      ? env.key.toLowerCase().includes(envFilter.toLowerCase()) ||
+        env.value.toLowerCase().includes(envFilter.toLowerCase())
+      : true
+  );
+
   return (
-    <div className="space-y-4 h-[calc(100vh-6rem)] flex flex-col">
-      <div className="flex items-center justify-between border-b border-white/10 pb-3">
+    <div className="space-y-4 h-[calc(100vh-6.5rem)] flex flex-col w-full">
+      <div className="flex items-center justify-between border-b border-white/10 pb-3.5 px-1">
         <div className="flex items-center gap-3">
           {onBackToLab && (
             <Button variant="secondary" size="sm" onClick={onBackToLab}>
               <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to Lab
             </Button>
           )}
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-sm">
-              ⚡
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-extrabold text-base shadow-lg shadow-emerald-500/10">
+                ⚡
+              </div>
+              <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-emerald-500 animate-ping opacity-75" />
+              <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-emerald-500" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-extrabold text-white">{containerName}</h2>
-                <Badge variant="success">Container ID: {containerId.substring(0, 12)}</Badge>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-lg font-extrabold text-white tracking-tight">{containerName}</h2>
+                <Badge variant="success">ID: {containerId.substring(0, 12)}</Badge>
               </div>
-              <p className="text-xs text-slate-400 font-mono">
-                Image: {imageId} | Strategy Engine: Active
+              <p className="text-xs text-slate-400 font-mono mt-0.5">
+                Catalog Image: <span className="text-blue-400 font-bold">{imageId}</span> &bull; 3-Phase Rules Engine Active
               </p>
             </div>
           </div>
@@ -261,33 +307,47 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
 
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={fetchLogs} isLoading={isFetchingLogs}>
-            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh Logs
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh Logs
           </Button>
           <Button variant="secondary" size="sm" onClick={runTestProbe} isLoading={isTestingProbe}>
-            <Activity className="h-3.5 w-3.5 mr-1 text-blue-400" /> Test Health
+            <Activity className="h-3.5 w-3.5 mr-1.5 text-blue-400" /> Health Probe
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 overflow-hidden">
-        <div className="lg:col-span-7 flex flex-col bg-slate-950 rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
-          <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 border-b border-white/10">
-            <div className="flex items-center gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 overflow-hidden">
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col bg-slate-950 rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
+          <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-white/10">
+            <div className="flex items-center gap-2.5">
               <TerminalIcon className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs font-bold text-slate-200">Interactive Container Shell</span>
-              <span className="text-[10px] text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded">
-                3-Phase Engine
+              <span className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">Interactive Container Terminal Shell</span>
+              <span className="text-[10px] text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded border border-white/5">
+                3-Phase Rules Engine
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setHistory([])}
-                className="text-xs text-slate-400 hover:text-rose-400 transition-colors p-1"
-                title="Clear Terminal Output"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              {history.length > 0 && (
+                <>
+                  <button
+                    onClick={downloadTerminalLogs}
+                    className="text-xs text-slate-400 hover:text-blue-400 transition-colors px-2 py-1 bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1"
+                    title="Export Terminal Session Logs"
+                  >
+                    <Download className="h-3 w-3" />
+                    <span className="text-[10px] font-bold">Export Log</span>
+                  </button>
+
+                  <button
+                    onClick={() => setHistory([])}
+                    className="text-xs text-slate-400 hover:text-rose-400 transition-colors px-2 py-1 bg-white/5 hover:bg-white/10 rounded-md flex items-center gap-1"
+                    title="Clear Terminal Output"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    <span className="text-[10px] font-bold">Clear</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -295,10 +355,10 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
             {history.length === 0 && (
               <div className="p-4 bg-slate-900/50 rounded-xl border border-white/5 space-y-2">
                 <p className="text-emerald-400 font-bold flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" /> Rules Engine Container Workspace Ready
+                  <Sparkles className="h-4 w-4" /> 3-Phase Rules Engine Terminal Ready
                 </p>
                 <p className="text-slate-400 text-[11px]">
-                  Type queries below or click any quick command from the side panel to execute. Commands are parsed and routed by the 3-Phase Rules Engine.
+                  Type shell or service queries below. Click any quick command chip below to populate the prompt instantly.
                 </p>
               </div>
             )}
@@ -314,7 +374,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
                     <span>{item.timestamp}</span>
                     <button
                       onClick={() => copyToClipboard(item.output, idx)}
-                      className="hover:text-white transition-colors"
+                      className="hover:text-white transition-colors p-1 rounded hover:bg-white/5"
                       title="Copy Output"
                     >
                       {copiedIdx === idx ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
@@ -323,7 +383,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
                 </div>
 
                 <div
-                  className={`p-3 rounded-xl border ${
+                  className={`p-3.5 rounded-xl border ${
                     item.exitCode === 0
                       ? "bg-slate-900/90 border-emerald-500/20 text-slate-200"
                       : "bg-rose-950/30 border-rose-500/30 text-rose-300"
@@ -337,21 +397,39 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
             {isExecuting && (
               <div className="flex items-center gap-2 text-slate-400 text-xs animate-pulse">
                 <Radio className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Executing via Rules Engine...</span>
+                <span>Executing command via Rules Engine...</span>
               </div>
             )}
 
             <div ref={terminalEndRef} />
           </div>
 
-          <div className="p-3 bg-slate-900 border-t border-white/10 flex items-center gap-2">
-            <span className="text-emerald-400 font-mono font-bold">$</span>
+          {helpCommands.length > 0 && (
+            <div className="px-3 py-2 bg-slate-950/90 border-t border-white/5 flex items-center gap-2 overflow-x-auto">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                <Zap className="h-3 w-3 text-amber-400" /> Quick Chips:
+              </span>
+              {helpCommands.slice(0, 5).map((hc, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCommand(hc.command)}
+                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-[10px] font-mono text-slate-300 hover:text-emerald-300 rounded-lg border border-white/5 hover:border-emerald-500/30 shrink-0 transition-all"
+                  title={hc.description}
+                >
+                  {hc.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="p-3 bg-slate-900 border-t border-white/10 flex items-center gap-2.5">
+            <span className="text-emerald-400 font-mono font-bold text-sm">$</span>
             <input
               type="text"
               value={command}
               onChange={(e) => setCommand(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type command (e.g. SELECT 1; or PING or show dbs)..."
+              placeholder="Type command (e.g. kafka-topics.sh --list or SELECT 1; or PING)..."
               className="flex-1 bg-transparent text-xs font-mono text-white placeholder-slate-500 focus:outline-none"
               disabled={isExecuting}
             />
@@ -362,16 +440,16 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
               isLoading={isExecuting}
               disabled={!command.trim()}
             >
-              <Play className="h-3 w-3 mr-1" /> Run
+              <Play className="h-3.5 w-3.5 mr-1" /> Run
             </Button>
           </div>
         </div>
 
-        <div className="lg:col-span-5 flex flex-col bg-slate-950 rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col bg-slate-950 rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
           <div className="flex items-center border-b border-white/10 bg-slate-900">
             <button
               onClick={() => setActiveTab("logs")}
-              className={`flex-1 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center justify-center gap-1.5 ${
                 activeTab === "logs"
                   ? "border-blue-500 text-blue-400 bg-white/5"
                   : "border-transparent text-slate-400 hover:text-white"
@@ -381,7 +459,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("help")}
-              className={`flex-1 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center justify-center gap-1.5 ${
                 activeTab === "help"
                   ? "border-emerald-500 text-emerald-400 bg-white/5"
                   : "border-transparent text-slate-400 hover:text-white"
@@ -391,7 +469,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
             </button>
             <button
               onClick={() => setActiveTab("specs")}
-              className={`flex-1 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-3 text-xs font-extrabold uppercase tracking-wider transition-all border-b-2 flex items-center justify-center gap-1.5 ${
                 activeTab === "specs"
                   ? "border-purple-500 text-purple-400 bg-white/5"
                   : "border-transparent text-slate-400 hover:text-white"
@@ -404,31 +482,68 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
           <div className="flex-1 p-4 overflow-y-auto bg-slate-950/80">
             {activeTab === "logs" && (
               <div className="space-y-3 h-full flex flex-col">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
-                  <input
-                    type="text"
-                    value={logFilter}
-                    onChange={(e) => setLogFilter(e.target.value)}
-                    placeholder="Filter logs..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-slate-900 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                  />
+                <div className="flex items-center justify-between gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      value={logFilter}
+                      onChange={(e) => setLogFilter(e.target.value)}
+                      placeholder="Filter log messages..."
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => setIsAutoRefreshLogs(!isAutoRefreshLogs)}
+                    className={`px-2.5 py-1.5 rounded-xl border text-[10px] font-bold flex items-center gap-1.5 transition-all ${
+                      isAutoRefreshLogs
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                        : "bg-slate-900 text-slate-400 border-white/10 hover:text-white"
+                    }`}
+                    title="Toggle 2-Second Live Log Auto-Refresh"
+                  >
+                    {isAutoRefreshLogs ? (
+                      <>
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                        <span>LIVE (2s)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Pause className="h-3 w-3 text-slate-400" />
+                        <span>Paused</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <div className="flex-1 bg-slate-900/90 rounded-xl border border-white/5 p-3 overflow-y-auto font-mono text-[11px] space-y-1">
                   {filteredLogs.length > 0 ? (
                     filteredLogs.map((log, idx) => (
-                      <div key={idx} className="flex gap-2 text-slate-300 hover:bg-white/5 py-0.5 px-1 rounded">
-                        <span className="text-slate-600 select-none shrink-0">[{log.timestamp.substring(0, 19)}]</span>
-                        <span className={log.stream === "stderr" ? "text-rose-400" : "text-emerald-300"}>
+                      <div key={idx} className="flex gap-2 text-slate-300 hover:bg-white/5 py-0.5 px-1 rounded break-all">
+                        <span className="text-slate-600 select-none shrink-0 text-[10px]">[{log.timestamp.substring(0, 19)}]</span>
+                        <span className={log.stream === "stderr" ? "text-rose-400 font-semibold" : "text-emerald-300"}>
                           {log.message}
                         </span>
                       </div>
                     ))
                   ) : (
-                    <div className="text-slate-600 py-12 text-center">No logs found</div>
+                    <div className="text-slate-600 py-12 text-center">No matching logs</div>
                   )}
                   <div ref={logsEndRef} />
+                </div>
+
+                <div className="flex items-center justify-between px-1 text-[10px] text-slate-400">
+                  <span>{filteredLogs.length} total log entries</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={autoScrollLogs}
+                      onChange={(e) => setAutoScrollLogs(e.target.checked)}
+                      className="rounded border-slate-700 text-blue-500 focus:ring-0"
+                    />
+                    <span>Auto-scroll to bottom</span>
+                  </label>
                 </div>
               </div>
             )}
@@ -437,14 +552,14 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
               <div className="space-y-3">
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300">
                   <p className="font-bold flex items-center gap-1.5">
-                    <Code className="h-4 w-4" /> Quick Command Reference Cheat Sheet
+                    <Code className="h-4 w-4" /> Quick Command Reference
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">
-                    Click any command card to populate it into the prompt below, or click "Run Now" to execute immediately.
+                    Click any card to populate into the prompt, or click "Run Now" for immediate execution.
                   </p>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {helpCommands.map((item, idx) => (
                     <div
                       key={idx}
@@ -462,17 +577,16 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
                               e.stopPropagation();
                               handleExecuteCommand(item.command);
                             }}
-                            className="px-2 py-0.5 text-[10px] font-bold bg-blue-600/30 hover:bg-blue-600/60 text-blue-200 border border-blue-500/30 rounded transition-all"
-                            title="Execute Immediately"
+                            className="px-2.5 py-1 text-[10px] font-bold bg-blue-600/30 hover:bg-blue-600/60 text-blue-200 border border-blue-500/30 rounded-lg transition-all"
                           >
                             Run Now
                           </button>
                         </div>
                       </div>
-                      <p className="text-[11px] font-mono text-slate-300 mt-1.5 bg-slate-950 p-1.5 rounded border border-white/5 break-all">
+                      <p className="text-[11px] font-mono text-slate-300 mt-2 bg-slate-950 p-2 rounded-lg border border-white/5 break-all">
                         {item.command}
                       </p>
-                      <p className="text-[10px] text-slate-500 mt-1">{item.description}</p>
+                      <p className="text-[10px] text-slate-500 mt-1.5">{item.description}</p>
                     </div>
                   ))}
                 </div>
@@ -480,39 +594,52 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
             )}
 
             {activeTab === "specs" && (() => {
-              const catalogItem = DOCKER_IMAGES_CATALOG.find((img) => img.id === imageId);
               const configJson = JSON.stringify(catalogItem?.defaultConfig || {}, null, 2);
 
               return (
                 <div className="space-y-4">
-                  <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2 font-mono text-xs">
-                    <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">Instance Runtime</span>
-                    <div className="flex justify-between text-slate-400">
+                  <div className="p-3.5 bg-slate-900 rounded-xl border border-white/10 space-y-2.5 font-mono text-xs">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Instance Runtime</span>
+                    <div className="flex justify-between items-center text-slate-400">
                       <span>Container ID:</span>
                       <span className="text-white font-bold">{containerId}</span>
                     </div>
-                    <div className="flex justify-between text-slate-400">
+                    <div className="flex justify-between items-center text-slate-400">
                       <span>Status:</span>
-                      <span className="text-emerald-400 font-bold">{containerInfo.status}</span>
+                      <span className="text-emerald-400 font-bold uppercase flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                        {containerInfo.status}
+                      </span>
                     </div>
-                    <div className="flex justify-between text-slate-400">
+                    <div className="flex justify-between items-center text-slate-400">
                       <span>Image Repository:</span>
-                      <span className="text-blue-400">{catalogItem?.image || imageId}:{catalogItem?.defaultTag || "latest"}</span>
+                      <span className="text-blue-400 font-bold">{catalogItem?.image || imageId}:{catalogItem?.defaultTag || "latest"}</span>
                     </div>
-                    <div className="flex justify-between text-slate-400">
+                    <div className="flex justify-between items-center text-slate-400">
                       <span>Port Bindings:</span>
-                      <span className="text-indigo-300">{containerInfo.ports.join(", ") || "None"}</span>
+                      <span className="text-indigo-300 font-bold">{containerInfo.ports.join(", ") || "None"}</span>
                     </div>
                   </div>
 
                   {catalogItem?.defaultConfig?.envVars && catalogItem.defaultConfig.envVars.length > 0 && (
-                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Environment Variables</span>
-                      <div className="space-y-1">
-                        {catalogItem.defaultConfig.envVars.map((env, i) => (
-                          <div key={i} className="flex items-center justify-between p-1.5 bg-slate-950 rounded border border-white/5 font-mono text-[11px]">
+                    <div className="p-3.5 bg-slate-900 rounded-xl border border-white/10 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Environment Variables ({filteredEnvVars.length})
+                        </span>
+                        <input
+                          type="text"
+                          value={envFilter}
+                          onChange={(e) => setEnvFilter(e.target.value)}
+                          placeholder="Search env..."
+                          className="px-2 py-0.5 bg-slate-950 border border-white/10 rounded text-[10px] text-white focus:outline-none focus:border-blue-500 w-28"
+                        />
+                      </div>
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                        {filteredEnvVars.map((env, i) => (
+                          <div key={i} className="flex flex-col gap-0.5 p-2 bg-slate-950 rounded-lg border border-white/5 font-mono text-[11px]">
                             <span className="text-emerald-400 font-bold">{env.key}</span>
-                            <span className="text-slate-300 break-all">{env.value}</span>
+                            <span className="text-slate-300 break-all text-[10px] leading-relaxed">{env.value}</span>
                           </div>
                         ))}
                       </div>
@@ -520,7 +647,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
                   )}
 
                   {testResult && (
-                    <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2 text-xs">
+                    <div className="p-3.5 bg-slate-900 rounded-xl border border-white/10 space-y-2 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-slate-300 flex items-center gap-1.5">
                           {testResult.healthy ? (
@@ -528,32 +655,32 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
                           ) : (
                             <AlertCircle className="h-4 w-4 text-rose-400" />
                           )}
-                          Health Status: {testResult.healthy ? "HEALTHY" : "UNHEALTHY"}
+                          Health Probe: {testResult.healthy ? "HEALTHY" : "UNHEALTHY"}
                         </span>
-                        <span className="text-slate-400 font-mono">{testResult.latencyMs} ms</span>
+                        <span className="text-slate-400 font-mono text-[11px]">{testResult.latencyMs} ms</span>
                       </div>
-                      <p className="text-[11px] font-mono text-slate-400 bg-slate-950 p-2 rounded border border-white/5">
+                      <p className="text-[11px] font-mono text-slate-400 bg-slate-950 p-2 rounded-lg border border-white/5 break-all">
                         {testResult.message}
                       </p>
                     </div>
                   )}
 
                   <Button variant="secondary" size="sm" onClick={runTestProbe} isLoading={isTestingProbe} className="w-full">
-                    <Activity className="h-3.5 w-3.5 mr-1 text-blue-400" /> Re-run Health Probe
+                    <Activity className="h-3.5 w-3.5 mr-1.5 text-blue-400" /> Re-run Health Probe
                   </Button>
 
-                  <div className="p-3 bg-slate-900 rounded-xl border border-white/10 space-y-2">
+                  <div className="p-3.5 bg-slate-900 rounded-xl border border-white/10 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Configuration JSON</span>
                       <button
                         onClick={() => copyToClipboard(configJson, 999)}
-                        className="text-xs text-slate-400 hover:text-white flex items-center gap-1"
+                        className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 p-1 rounded hover:bg-white/5"
                       >
-                        {copiedIdx === 999 ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                        <span>Copy JSON</span>
+                        {copiedIdx === 999 ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        <span className="text-[11px]">Copy JSON</span>
                       </button>
                     </div>
-                    <pre className="p-3 bg-slate-950 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 overflow-x-auto max-h-48">
+                    <pre className="p-3 bg-slate-950 rounded-xl border border-white/5 font-mono text-[10px] text-slate-300 overflow-x-auto max-h-52 leading-relaxed">
                       {configJson}
                     </pre>
                   </div>
