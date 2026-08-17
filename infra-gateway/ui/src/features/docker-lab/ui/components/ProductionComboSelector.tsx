@@ -16,6 +16,8 @@ import {
   Network,
   ChevronDown,
   Terminal,
+  ShieldCheck,
+  X,
 } from "lucide-react";
 import {
   PRODUCTION_STACK_PRESETS,
@@ -34,6 +36,7 @@ export const ProductionComboSelector: React.FC<ProductionComboSelectorProps> = (
 }) => {
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRODUCTION_STACK_PRESETS[0].id);
   const [networkName, setNetworkName] = useState("shared-lab-net");
+  const [showApprovalPanel, setShowApprovalPanel] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [execStatus, setExecStatus] = useState<string | null>(null);
   const [execError, setExecError] = useState<string | null>(null);
@@ -64,7 +67,8 @@ export const ProductionComboSelector: React.FC<ProductionComboSelectorProps> = (
     URL.revokeObjectURL(url);
   };
 
-  const handleRunComboStack = async () => {
+  const handleApproveAndExecute = async () => {
+    setShowApprovalPanel(false);
     setIsExecuting(true);
     setExecError(null);
     setExecStatus(`Initializing ${selectedPreset.name}...`);
@@ -122,7 +126,10 @@ export const ProductionComboSelector: React.FC<ProductionComboSelectorProps> = (
           <div className="relative">
             <select
               value={selectedPresetId}
-              onChange={(e) => setSelectedPresetId(e.target.value)}
+              onChange={(e) => {
+                setSelectedPresetId(e.target.value);
+                setShowApprovalPanel(false);
+              }}
               className="appearance-none pl-3 pr-8 py-2 bg-slate-950 border border-white/10 hover:border-blue-500/50 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
             >
               {PRODUCTION_STACK_PRESETS.map((preset) => (
@@ -149,35 +156,86 @@ export const ProductionComboSelector: React.FC<ProductionComboSelectorProps> = (
             type="button"
             variant="primary"
             size="sm"
-            onClick={handleRunComboStack}
+            onClick={() => setShowApprovalPanel(true)}
             isLoading={isExecuting}
             className="text-xs bg-emerald-600 hover:bg-emerald-500 border-emerald-400 shadow-lg shadow-emerald-600/20"
           >
-            <Play className="h-3.5 w-3.5 mr-1.5 fill-current" /> Run Combo Stack ({presetConfigs.length})
+            <ShieldCheck className="h-3.5 w-3.5 mr-1.5" /> Review & Approve Stack ({presetConfigs.length})
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1">
-        {plan.phases.map((phase) => (
-          <div key={phase.phaseIndex} className="p-3 bg-slate-950/90 rounded-xl border border-white/5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-400">
-                Phase {phase.phaseIndex}
-              </span>
-              <span className="text-[10px] font-mono text-slate-500">{phase.configs.length} nodes</span>
-            </div>
-            <p className="text-[11px] font-bold text-white truncate">{phase.phaseName.split(":")[1] || phase.phaseName}</p>
-            <div className="flex flex-wrap gap-1 pt-1">
-              {phase.configs.map((c) => (
-                <span key={c.imageId} className="px-2 py-0.5 bg-slate-900 border border-white/10 rounded text-[10px] font-mono text-slate-300">
-                  {c.imageId}
+      {!showApprovalPanel ? (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1">
+          {plan.phases.map((phase) => (
+            <div key={phase.phaseIndex} className="p-3 bg-slate-950/90 rounded-xl border border-white/5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-400">
+                  Phase {phase.phaseIndex}
                 </span>
-              ))}
+                <span className="text-[10px] font-mono text-slate-500">{phase.configs.length} nodes</span>
+              </div>
+              <p className="text-[11px] font-bold text-white truncate">{phase.phaseName.split(":")[1] || phase.phaseName}</p>
+              <div className="flex flex-wrap gap-1 pt-1">
+                {phase.configs.map((c) => (
+                  <span key={c.imageId} className="px-2 py-0.5 bg-slate-900 border border-white/10 rounded text-[10px] font-mono text-slate-300">
+                    {c.imageId}
+                  </span>
+                ))}
+              </div>
             </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-4 bg-slate-950 rounded-xl border border-amber-500/30 space-y-4 animate-in fade-in">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Pre-Flight Docker Configuration Approval Required</span>
+            </div>
+            <button type="button" onClick={() => setShowApprovalPanel(false)} className="text-slate-400 hover:text-white">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        ))}
-      </div>
+
+          <p className="text-xs text-slate-300">
+            Please review the auto-resolved Docker container configuration and environment variables before starting <span className="font-bold text-white font-mono">{selectedPreset.name}</span>:
+          </p>
+
+          <div className="space-y-2 font-mono text-[11px]">
+            {plan.phases.map((phase) => (
+              <div key={phase.phaseIndex} className="p-3 bg-slate-900 rounded-lg border border-white/5 space-y-1">
+                <div className="text-blue-400 font-bold">{phase.phaseName}</div>
+                {phase.configs.map((cfg) => (
+                  <div key={cfg.imageId} className="text-slate-300 pl-3">
+                    &bull; container: <span className="text-white font-bold">{cfg.imageId}</span> | net: <span className="text-emerald-400">{networkName}</span> | ports: <span className="text-indigo-300">{(cfg.ports || []).map((p) => `${p.hostPort}:${p.containerPort}`).join(", ") || "bridge"}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowApprovalPanel(false)}
+              className="px-4 py-2 text-xs text-slate-400 hover:text-white"
+            >
+              Cancel & Modify
+            </button>
+
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={handleApproveAndExecute}
+              className="bg-emerald-600 hover:bg-emerald-500 border-emerald-400 px-5"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1.5" /> Approve & Execute Stack Pipeline
+            </Button>
+          </div>
+        </div>
+      )}
 
       {execStatus && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300 flex items-center gap-2 animate-pulse">

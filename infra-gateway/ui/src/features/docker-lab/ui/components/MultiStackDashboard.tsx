@@ -19,7 +19,8 @@ import {
   Check,
   Activity,
   Terminal,
-  Sparkles,
+  ShieldCheck,
+  X,
 } from "lucide-react";
 import {
   PRODUCTION_STACK_PRESETS,
@@ -36,6 +37,7 @@ interface MultiStackDashboardProps {
 export const MultiStackDashboard: React.FC<MultiStackDashboardProps> = ({ onBackToLab }) => {
   const [selectedPresetId, setSelectedPresetId] = useState<string>(PRODUCTION_STACK_PRESETS[0].id);
   const [networkName, setNetworkName] = useState("shared-lab-net");
+  const [showApprovalBox, setShowApprovalBox] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [currentExecutingPhase, setCurrentExecutingPhase] = useState<number | null>(null);
   const [completedPhases, setCompletedPhases] = useState<number[]>([]);
@@ -78,7 +80,8 @@ export const MultiStackDashboard: React.FC<MultiStackDashboardProps> = ({ onBack
     URL.revokeObjectURL(url);
   };
 
-  const handleRunComboStack = async () => {
+  const handleApproveAndRunComboStack = async () => {
+    setShowApprovalBox(false);
     setIsExecuting(true);
     setExecError(null);
     setCompletedPhases([]);
@@ -161,11 +164,11 @@ export const MultiStackDashboard: React.FC<MultiStackDashboardProps> = ({ onBack
             type="button"
             variant="primary"
             size="md"
-            onClick={handleRunComboStack}
+            onClick={() => setShowApprovalBox(true)}
             isLoading={isExecuting}
             className="text-xs bg-emerald-600 hover:bg-emerald-500 border-emerald-400 px-5 shadow-xl shadow-emerald-600/20"
           >
-            <Play className="h-4 w-4 mr-2 fill-current" />
+            <ShieldCheck className="h-4 w-4 mr-2" />
             {isLaunchingText(isExecuting, currentExecutingPhase, selectedPreset.name)}
           </Button>
         </div>
@@ -178,7 +181,10 @@ export const MultiStackDashboard: React.FC<MultiStackDashboardProps> = ({ onBack
             <button
               key={preset.id}
               type="button"
-              onClick={() => setSelectedPresetId(preset.id)}
+              onClick={() => {
+                setSelectedPresetId(preset.id);
+                setShowApprovalBox(false);
+              }}
               className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between ${
                 isActive
                   ? "bg-blue-600/20 border-blue-500 text-white shadow-xl shadow-blue-500/10 ring-1 ring-blue-500/50"
@@ -200,6 +206,66 @@ export const MultiStackDashboard: React.FC<MultiStackDashboardProps> = ({ onBack
           );
         })}
       </div>
+
+      {showApprovalBox && (
+        <GlassCard className="p-5 border border-amber-500/40 bg-slate-900/95 space-y-4 animate-in fade-in shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+              <ShieldCheck className="h-5 w-5" />
+              <span>Pre-Flight Docker Configuration Review & Approval Required</span>
+            </div>
+            <button type="button" onClick={() => setShowApprovalBox(false)} className="text-slate-400 hover:text-white">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-300">
+            Verify the auto-wired environment variables, network aliases, and container startup sequence before launching <span className="font-bold text-white font-mono">{selectedPreset.name}</span>:
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-[11px]">
+            {plan.phases.map((phase) => (
+              <div key={phase.phaseIndex} className="p-3 bg-slate-950 rounded-xl border border-white/10 space-y-1.5">
+                <div className="text-blue-400 font-bold flex justify-between">
+                  <span>{phase.phaseName}</span>
+                  <span className="text-[10px] text-slate-500">{phase.configs.length} nodes</span>
+                </div>
+                {phase.configs.map((cfg) => (
+                  <div key={cfg.imageId} className="p-2 bg-slate-900 rounded border border-white/5 space-y-0.5">
+                    <div className="text-emerald-400 font-bold flex justify-between">
+                      <span>{cfg.imageId}:{cfg.tag || "latest"}</span>
+                      <span className="text-slate-400">alias: {cfg.imageId}</span>
+                    </div>
+                    <div className="text-slate-400 text-[10px]">
+                      ports: {(cfg.ports || []).map((p) => `${p.hostPort}:${p.containerPort}`).join(", ") || "bridge internal"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowApprovalBox(false)}
+              className="px-4 py-2 text-xs text-slate-400 hover:text-white"
+            >
+              Cancel
+            </button>
+
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              onClick={handleApproveAndRunComboStack}
+              className="bg-emerald-600 hover:bg-emerald-500 border-emerald-400 px-6 py-2.5"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" /> Approve & Execute Stack Pipeline
+            </Button>
+          </div>
+        </GlassCard>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 flex flex-col space-y-4">
@@ -338,7 +404,7 @@ export const MultiStackDashboard: React.FC<MultiStackDashboardProps> = ({ onBack
 };
 
 function isLaunchingText(isExecuting: boolean, currentPhase: number | null, name: string): string {
-  if (!isExecuting) return `Launch ${name}`;
+  if (!isExecuting) return `Review & Approve ${name}`;
   if (currentPhase) return `Executing Phase ${currentPhase}...`;
   return "Deploying Stack...";
 }
