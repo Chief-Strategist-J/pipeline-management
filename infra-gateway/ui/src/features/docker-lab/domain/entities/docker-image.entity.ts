@@ -76,12 +76,13 @@ export interface LogLine {
 
 export type ImageCategory =
   | "Databases"
-  | "Messaging"
-  | "Observability"
-  | "Search"
+  | "Messaging & Streaming"
+  | "Observability & Tracing"
+  | "Search Engines"
   | "Proxy & Gateway"
-  | "Security & Auth"
-  | "CI/CD & Infra";
+  | "Security & Identity"
+  | "Dev & Infrastructure"
+  | "AI & Vector DBs";
 
 export interface DockerImage {
   id: string;
