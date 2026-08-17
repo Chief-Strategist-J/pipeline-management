@@ -40,96 +40,110 @@ The **Docker Lab Engine** within `infra-gateway` provides an interactive, zero-l
 ### 2.1 Detailed System Component & Data Flow Architecture
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#3b82f6', 'primaryTextColor': '#ffffff', 'primaryBorderColor': '#60a5fa', 'lineColor': '#a855f7', 'secondaryColor': '#1e293b', 'tertiaryColor': '#0f172a'}}}%%
 graph TB
-    subgraph UI_Layer["UI Presentation Layer"]
-        CatalogUI["ImageCatalog Component"]
-        ExecUI["ExecutionPanel Component"]
-        TerminalUI["TerminalModal Component"]
-        ConfigUI["ConfigureModal Component"]
+    classDef clientStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
+    classDef stateStyle fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff;
+    classDef portStyle fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#fff;
+    classDef apiStyle fill:#701a75,stroke:#f0abfc,stroke-width:2px,color:#fff;
+    classDef engineStyle fill:#4c1d95,stroke:#c084fc,stroke-width:2px,color:#fff;
+    classDef dockerStyle fill:#831843,stroke:#f472b6,stroke-width:2px,color:#fff;
+
+    subgraph UI_Layer["🖥️ Presentation & Terminal UI Layer"]
+        CatalogUI["📇 ImageCatalog Component"]:::clientStyle
+        ExecUI["💻 ExecutionPanel Component"]:::clientStyle
+        TerminalUI["🖥️ TerminalModal Component"]:::clientStyle
+        ConfigUI["⚙️ ConfigureModal Component"]:::clientStyle
     end
 
-    subgraph State_Layer["Application & State Management"]
-        Slice["Redux Slice (docker-lab.slice.ts)"]
-        Selectors["Memoized Selectors (docker-lab.selectors.ts)"]
-        Saga["Redux Saga (manage-docker-lab.saga.ts)"]
+    subgraph State_Layer["⚡ Redux Application & State Layer"]
+        Slice["📦 Slice State (docker-lab.slice.ts)"]:::stateStyle
+        Selectors["🔍 Memoized Selectors"]:::stateStyle
+        Saga["⚙️ Redux Saga Orchestrator"]:::stateStyle
     end
 
-    subgraph Port_Adapter_Layer["Hexagonal Port & Adapter Layer"]
-        Port["Port Interface (docker-lab.port.ts)"]
-        Adapter["REST Adapter (docker-lab-rest.adapter.ts)"]
+    subgraph Port_Adapter_Layer["🔌 Hexagonal Boundary Layer"]
+        Port["🔌 DockerLabPort Interface"]:::portStyle
+        Adapter["🌐 DockerLabRestAdapter"]:::portStyle
     end
 
-    subgraph API_Layer["Next.js API Gateway Routes"]
-        ExecuteAPI["POST /api/docker-lab/execute"]
-        ExecAPI["POST /api/docker-lab/exec"]
-        LogsAPI["GET /api/docker-lab/logs"]
-        TestAPI["POST /api/docker-lab/test"]
-        DeleteAPI["DELETE /api/docker-lab/containers"]
+    subgraph API_Layer["🚪 Next.js API Gateway Layer"]
+        ExecuteAPI["🚀 POST /api/docker-lab/execute"]:::apiStyle
+        ExecAPI["🐚 POST /api/docker-lab/exec"]:::apiStyle
+        LogsAPI["📜 GET /api/docker-lab/logs"]:::apiStyle
+        TestAPI["🩺 POST /api/docker-lab/test"]:::apiStyle
+        DeleteAPI["🗑️ DELETE /api/docker-lab/containers"]:::apiStyle
     end
 
-    subgraph Core_Engine["Core Rules Engine Engine"]
-        Inspector["Runtime Environment Inspector"]
-        Phase1["Phase 1: Command Rules Engine (dockerExecRules)"]
-        Phase2["Phase 2: Strategy Rules Engine (dockerExecStrategyRules)"]
-        Constants["Constants Catalog (docker-lab.constants.ts)"]
+    subgraph Core_Engine["🔮 Core Rules Engine Engine"]
+        Inspector["🔍 Runtime Inspector"]:::engineStyle
+        Phase1["✨ Phase 1: Command Rules Engine"]:::engineStyle
+        Phase2["🛡️ Phase 2: Strategy Rules Engine"]:::engineStyle
+        Constants["💎 Constants Catalog"]:::engineStyle
     end
 
-    subgraph Docker_Host["Local System & Docker Daemon"]
-        Daemon["Docker Engine Socket"]
-        Containers["Running Containers (Postgres, Kafka, Redis, Qdrant...)"]
+    subgraph Docker_Host["🐳 Docker Engine & Containers"]
+        Daemon["🐳 Docker Engine Socket"]:::dockerStyle
+        Containers["📦 Containers (Postgres, Kafka, Redis, Qdrant...)"]:::dockerStyle
     end
 
-    CatalogUI -->|Dispatches Execute Action| Saga
-    ExecUI -->|Dispatches Shell Action| Saga
-    TerminalUI -->|Dispatches Query Action| Saga
-    Saga -->|Selects State| Selectors
-    Saga -->|Calls Port Methods| Port
+    CatalogUI -->|1. Dispatch Execute Action| Saga
+    ExecUI -->|2. Dispatch Shell Execution| Saga
+    TerminalUI -->|3. Dispatch SQL/Query Action| Saga
+    Saga -->|Reads State| Selectors
+    Saga -->|Calls Port| Port
     Port -->|Implemented By| Adapter
-    Adapter -->|HTTP Fetch| ExecAPI
-    Adapter -->|HTTP Fetch| ExecuteAPI
-    Adapter -->|HTTP Fetch| LogsAPI
+    Adapter -->|HTTP POST| ExecAPI
+    Adapter -->|HTTP POST| ExecuteAPI
+    Adapter -->|HTTP GET| LogsAPI
 
     ExecAPI --> Inspector
     Inspector -->|Returns ContainerInfo| Core_Engine
     Core_Engine --> Constants
     ExecAPI --> Phase1
-    Phase1 --> Phase2
-    Phase2 -->|Executes Command| Daemon
+    Phase1 -->|Transforms Command| Phase2
+    Phase2 -->|Executes Strategy| Daemon
     Daemon --> Containers
 ```
 
 ### 2.2 Hexagonal Ports & Adapters Architecture
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#064e3b', 'primaryTextColor': '#ffffff', 'primaryBorderColor': '#34d399', 'lineColor': '#38bdf8'}}}%%
 graph LR
-    subgraph Drivers["Driving Adapters (Primary Input)"]
-        WebUI["Next.js Web UI"]
-        CLITerminal["Interactive Terminal"]
+    classDef driverStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
+    classDef portStyle fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff;
+    classDef domainStyle fill:#4c1d95,stroke:#c084fc,stroke-width:2px,color:#fff;
+    classDef drivenStyle fill:#701a75,stroke:#f0abfc,stroke-width:2px,color:#fff;
+
+    subgraph Drivers["📥 Driving Drivers (User Actions)"]
+        WebUI["🖥️ React Web Application UI"]:::driverStyle
+        CLITerminal["🐚 Interactive Terminal Modal"]:::driverStyle
     end
 
-    subgraph Application["Core Hexagonal Boundaries"]
-        subgraph Ports["Ports (Contracts)"]
-            InboundPort["DockerLabPort (Interface)"]
+    subgraph Application["🏰 Hexagonal Core Architecture"]
+        subgraph Ports["🔌 Inbound Port Contracts"]
+            InboundPort["DockerLabPort (Port Interface)"]:::portStyle
         end
-        subgraph Domain["Core Domain Logic"]
-            Entities["DockerImage Entity"]
-            Catalog["DOCKER_IMAGES_CATALOG"]
-            RulesEngine["Core Rules Engine"]
+        subgraph Domain["💎 Domain Engine Core"]
+            Entities["DockerImage Entity Model"]:::domainStyle
+            Catalog["DOCKER_IMAGES_CATALOG"]:::domainStyle
+            RulesEngine["Dual-Phase Rules Engine"]:::domainStyle
         end
     end
 
-    subgraph Driven["Driven Adapters (Secondary Output)"]
-        RESTAdapter["DockerLabRestAdapter"]
-        DockerCLI["Docker CLI Process Facade"]
+    subgraph Driven["📤 Driven Adapters (Infrastructure)"]
+        RESTAdapter["🌐 DockerLabRestAdapter"]:::drivenStyle
+        DockerCLI["🐳 Docker CLI Child Process Facade"]:::drivenStyle
     end
 
-    Drivers -->|Triggers Actions| InboundPort
+    Drivers -->|Invoke Methods| InboundPort
     InboundPort -->|Implemented By| RESTAdapter
-    RESTAdapter -->|Invokes Engine| Domain
-    Domain -->|Delegates Execution| DockerCLI
+    RESTAdapter -->|Evaluate Rules| Domain
+    Domain -->|Execute System Call| DockerCLI
 ```
 
-### 2.3 End-to-End Execution Sequence Diagram
+### 2.3 End-to-End Sequence Diagram
 
 ```mermaid
 sequenceDiagram
@@ -163,28 +177,33 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    Start([User Clicks 'Execute Selected']) --> BuildRunCmd[Build docker run Command with Host Port Allocation]
-    BuildRunCmd --> ExecDockerRun[Execute `docker run -d --name dlab-image-xxxx -p hostPort:containerPort`]
-    ExecDockerRun --> InspectID[Run `docker inspect --format '{{.ID}}'`]
-    InspectID --> GetShortID[Extract 12-character Hex Container ID]
-    GetShortID --> StartLogPoll[Initiate Polling `GET /api/docker-lab/logs?containerId=shortID`]
-    GetShortID --> ProbeHealth[Run Health Check `POST /api/docker-lab/test`]
+    classDef startStyle fill:#15803d,stroke:#4ade80,stroke-width:2px,color:#fff;
+    classDef processStyle fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#fff;
+    classDef decisionStyle fill:#a21caf,stroke:#f0abfc,stroke-width:2px,color:#fff;
+    classDef cleanStyle fill:#b91c1c,stroke:#f87171,stroke-width:2px,color:#fff;
+
+    Start([🚀 User Clicks 'Execute Selected']):::startStyle --> BuildRunCmd[🔨 Build docker run Command with Port Allocation]:::processStyle
+    BuildRunCmd --> ExecDockerRun[🐳 Execute `docker run -d --name dlab-image-xxxx`]:::processStyle
+    ExecDockerRun --> InspectID[🔍 Run `docker inspect --format '{{.ID}}'`]:::processStyle
+    InspectID --> GetShortID[🔑 Extract 12-character Hex Container ID]:::processStyle
+    GetShortID --> StartLogPoll[📜 Initiate Polling `GET /api/docker-lab/logs`]:::processStyle
+    GetShortID --> ProbeHealth[🩺 Run Health Probe `POST /api/docker-lab/test`]:::processStyle
     
-    ProbeHealth --> CheckStatus{Probe Passed?}
-    CheckStatus -- Yes --> MarkRunning[Mark Container Status: 'running']
-    CheckStatus -- No --> RetryProbe[Retry TCP / HTTP / Exec Probe]
+    ProbeHealth --> CheckStatus{Status Health Check Passed?}:::decisionStyle
+    CheckStatus -- Yes --> MarkRunning[🟢 Set Container Status: 'running']:::processStyle
+    CheckStatus -- No --> RetryProbe[🔄 Retry Health Check Probe]:::processStyle
     RetryProbe --> MarkRunning
 
-    MarkRunning --> ExecUserCmd[User Sends Shell Command]
-    ExecUserCmd --> InspectEnv[Inspect Container Env: POSTGRES_DB, MYSQL_USER...]
-    InspectEnv --> Phase1Transform[Phase 1 Transformation: psql, mysql, redis-cli, kafka-topics.sh]
-    Phase1Transform --> Phase2Strategy[Phase 2 Strategy: Distroless vs Shell Wrapper]
-    Phase2Strategy --> ReturnOutput[Return Execution Output]
+    MarkRunning --> ExecUserCmd[🐚 Developer Submits Command]:::processStyle
+    ExecUserCmd --> InspectEnv[🔍 Inspect Environment Variables dynamically]:::processStyle
+    InspectEnv --> Phase1Transform[✨ Phase 1 Transformation: psql, mysql, redis-cli...]:::processStyle
+    Phase1Transform --> Phase2Strategy[🛡️ Phase 2 Strategy: Distroless vs Shell Execution]:::processStyle
+    Phase2Strategy --> ReturnOutput[📊 Return Result JSON to UI]:::processStyle
 
-    ReturnOutput --> UserDelete[User Clicks Stop Container]
-    UserDelete --> ExecDockerRM[Execute `docker rm -f containerId`]
-    ExecDockerRM --> StopLogs[Filter Log API Response to Empty Array `[]`]
-    StopLogs --> End([Container Stopped & Cleaned])
+    ReturnOutput --> UserDelete[🛑 User Deletes Container]:::processStyle
+    UserDelete --> ExecDockerRM[🧹 Execute `docker rm -f containerId`]:::cleanStyle
+    ExecDockerRM --> StopLogs[🛑 Return Empty Array `[]` for Logs API]:::cleanStyle
+    StopLogs --> End([🏁 Container Safely Stopped & Cleaned]):::cleanStyle
 ```
 
 ---
@@ -195,38 +214,46 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Input([Incoming Command Payload: containerId, rawCommand]) --> Inspect[Inspect Container via docker inspect]
-    Inspect --> CreateCtx[Create RuleContext: name, image, env, rawCommand, codeLines, isSql]
-    
-    CreateCtx --> Phase1Filter[Filter Active Rules: rule.enabled == true]
-    Phase1Filter --> Phase1Sort[Sort Rules by Priority Descending: 100 -> 90 -> 10]
-    Phase1Sort --> Phase1Loop{Evaluate rule.condition(ctx)}
-    
-    Phase1Loop -- Matches Postgres SQL --> TransformPostgres[Transform: psql -U pgUser -d pgDb -c "SQL"]
-    Phase1Loop -- Matches MySQL SQL --> TransformMySQL[Transform: mysql -u user -pPass db -e "SQL"]
-    Phase1Loop -- Matches Redis Cmd --> TransformRedis[Transform: redis-cli cmd]
-    Phase1Loop -- Matches Mongo Cmd --> TransformMongo[Transform: mongosh --eval "query"]
-    Phase1Loop -- Matches Kafka Cmd --> TransformKafka[Transform: kafka-topics.sh --list / --create]
-    Phase1Loop -- Matches Fallback --> TransformFallback[Transform: PATH=$PATH:/opt/kafka/bin:/usr/local/bin ...]
+    classDef inputStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
+    classDef p1Style fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#fff;
+    classDef p2Style fill:#701a75,stroke:#f0abfc,stroke-width:2px,color:#fff;
+    classDef outputStyle fill:#15803d,stroke:#4ade80,stroke-width:2px,color:#fff;
 
-    TransformPostgres --> Phase2Start[Pass Transformed Command to Phase 2 Execution Strategy]
+    Input([📥 Incoming Payload: containerId, rawCommand]):::inputStyle --> Inspect[🔍 Inspect Container via docker inspect]:::inputStyle
+    Inspect --> CreateCtx[📋 Create RuleContext: name, image, env, rawCommand, isSql]:::inputStyle
+    
+    CreateCtx --> Phase1Filter[✨ Filter Active Rules: rule.enabled == true]:::p1Style
+    Phase1Filter --> Phase1Sort[🔢 Sort Rules by Priority Descending: 100 -> 10]:::p1Style
+    Phase1Sort --> Phase1Loop{Match Rule Condition}:::p1Style
+    
+    Phase1Loop -- Postgres SQL --> TransformPostgres[🐘 Transform: psql -U pgUser -d pgDb -c "SQL"]:::p1Style
+    Phase1Loop -- MySQL SQL --> TransformMySQL[🐬 Transform: mysql -u user -pPass -e "SQL"]:::p1Style
+    Phase1Loop -- Redis Cmd --> TransformRedis[🔴 Transform: redis-cli cmd]:::p1Style
+    Phase1Loop -- Mongo Cmd --> TransformMongo[🍃 Transform: mongosh --eval "query"]:::p1Style
+    Phase1Loop -- Kafka Cmd --> TransformKafka[🚀 Transform: kafka-topics.sh --list]:::p1Style
+    Phase1Loop -- Fallback --> TransformFallback[⚙️ Transform: PATH=$PATH:/opt/kafka/bin...]:::p1Style
+
+    TransformPostgres --> Phase2Start[🛡️ Pass Transformed Command to Phase 2 Execution Strategy]:::p2Style
     TransformMySQL --> Phase2Start
     TransformRedis --> Phase2Start
     TransformMongo --> Phase2Start
     TransformKafka --> Phase2Start
     TransformFallback --> Phase2Start
 
-    Phase2Start --> CheckDistroless{Is Distroless Base Image? (SurrealDB, Kratos)}
-    CheckDistroless -- Yes --> StrategyDirect[Execute Strategy: Direct docker exec containerId finalCmd]
-    CheckDistroless -- No --> StrategyShell[Execute Strategy: docker exec containerId sh -c JSON_CMD]
+    Phase2Start --> CheckStrategy{Matched Strategy Rule}:::p2Style
+    CheckStrategy -- Postgres Rule --> StrategyPostgres[🐘 Execute PostgreSQL Strategy & Check Error Signatures]:::p2Style
+    CheckStrategy -- MySQL Rule --> StrategyMySQL[🐬 Execute MySQL Strategy & Check Error Signatures]:::p2Style
+    CheckStrategy -- Redis Rule --> StrategyRedis[🔴 Execute Redis Strategy & Check Error Codes]:::p2Style
+    CheckStrategy -- Distroless Rule --> StrategyDirect[⚡ Direct Execution Strategy: docker exec containerId finalCmd]:::p2Style
+    CheckStrategy -- Shell Fallback Rule --> StrategyShell[🐚 Shell Wrapper Strategy: docker exec containerId sh -c JSON_CMD]:::p2Style
     
-    StrategyShell --> CheckFallback{Executable Not Found?}
-    CheckFallback -- Yes --> RetryDirect[Retry: Direct docker exec containerId finalCmd]
-    CheckFallback -- No --> EvaluateError
-    RetryDirect --> EvaluateError
-    StrategyDirect --> EvaluateError
+    StrategyPostgres --> EvaluateOutput[📊 Evaluate Exit Code & Response Output]:::outputStyle
+    StrategyMySQL --> EvaluateOutput
+    StrategyRedis --> EvaluateOutput
+    StrategyDirect --> EvaluateOutput
+    StrategyShell --> EvaluateOutput
 
-    EvaluateError[Evaluate Exit Signatures: psql error, ERROR 1045, command not found] --> BuildResponse[Return { exitCode, output }]
+    EvaluateOutput --> BuildResponse([📊 Return Result JSON { exitCode, output }]):::outputStyle
 ```
 
 ### 3.2 Constants Architecture & Schema Definitions
@@ -267,69 +294,69 @@ Commands pass through `resolveFirstRuleTransform(dockerExecRules, ruleContext)`:
 ### 3.4 Phase 2: Execution Strategy & Post-Processing Engine
 
 Evaluated by `resolveExecutionStrategy(dockerExecStrategyRules, ruleContext, containerId, finalCmd)`:
+- Image-specific strategy rules (`rule-strategy-postgres`, `rule-strategy-mysql-mariadb`, `rule-strategy-mongo`, `rule-strategy-redis`, `rule-strategy-kafka`, `rule-strategy-elasticsearch`, `rule-strategy-distroless`, `rule-strategy-standard-shell`).
 - Handles distroless images (e.g. SurrealDB) that lack `/bin/sh` by executing directly.
-- Handles standard Linux base images using `docker exec containerId sh -c ...` with fallback retry logic.
-- Evaluates exit codes based on image-specific error signatures (`psql: error:`, `ERROR 1045`, `command not found`).
+- Evaluates exit codes based on image-specific error signatures (`psql: error:`, `ERROR 1045`, `MongoServerError`, `(error) ERR`).
 
 ---
 
 ## 4. Detailed Rule Matrix for All 47+ Infrastructure Images
 
-| Image ID | Category | Official Docker Hub URL | Native CLI / Health Target | Transformation Strategy |
+| Image ID | Category | Official Docker Hub URL | Native CLI / Health Target | Transformation & Strategy Rule |
 |---|---|---|---|---|
-| `redis` | Databases | `https://hub.docker.com/_/redis` | `redis-cli` | Auto-routes `PING`, `SET`, `GET`, `KEYS *` to `redis-cli <cmd>` |
-| `postgres` | Databases | `https://hub.docker.com/_/postgres` | `psql` | Auto-wraps raw SQL into `psql -U ${env.POSTGRES_USER} -d ${env.POSTGRES_DB} -c "..."` |
-| `mysql` | Databases | `https://hub.docker.com/_/mysql` | `mysql` | Auto-wraps raw SQL into `mysql -u ${env.MYSQL_USER} -p${pass} ${db} -e "..."` |
-| `mariadb` | Databases | `https://hub.docker.com/_/mariadb` | `mariadb` | Auto-wraps raw SQL into `mariadb -u ${user} -p${pass} -e "..."` |
-| `mongodb` | Databases | `https://hub.docker.com/_/mongo` | `mongosh` / `mongo` | Auto-wraps JS queries into `mongosh --eval "..."` |
-| `clickhouse` | Databases | `https://hub.docker.com/r/clickhouse/clickhouse-server` | `clickhouse-client` | Auto-wraps SQL into `clickhouse-client -q "..."` |
-| `surrealdb` | Databases | `https://hub.docker.com/r/surrealdb/surrealdb` | `/surreal` | Executes `/surreal sql --endpoint ...` (Distroless strategy) |
-| `cassandra` | Databases | `https://hub.docker.com/_/cassandra` | `cqlsh` | Auto-wraps CQL into `/opt/cassandra/bin/cqlsh -e "..."` |
-| `cockroachdb` | Databases | `https://hub.docker.com/r/cockroachdb/cockroach` | `cockroach sql` | Auto-wraps SQL into `/cockroach/cockroach sql --insecure -e "..."` |
-| `timescaledb` | Databases | `https://hub.docker.com/r/timescale/timescaledb` | `psql` | Auto-wraps SQL into `psql -U ${user} -d ${db} -c "..."` |
-| `scylladb` | Databases | `https://hub.docker.com/r/scylladb/scylla` | `cqlsh` | Executes `/usr/bin/cqlsh <cmd>` |
-| `influxdb` | Databases | `https://hub.docker.com/_/influxdb` | `influx` | Routes commands to `/usr/bin/influx` |
-| `neo4j` | Databases | `https://hub.docker.com/_/neo4j` | `cypher-shell` | Auto-wraps Cypher queries into `cypher-shell -u neo4j -p pass "..."` |
-| `qdrant` | AI & Vector DBs | `https://hub.docker.com/r/qdrant/qdrant` | `/readyz` | Routes REST requests & probes to `http://localhost:6333/readyz` |
-| `milvus` | AI & Vector DBs | `https://hub.docker.com/r/milvusdb/milvus` | `/healthz` | Routes health check to `http://localhost:9091/healthz` |
-| `weaviate` | AI & Vector DBs | `https://hub.docker.com/r/semitechnologies/weaviate` | `/v1/.well-known/ready` | Routes ready check to `http://localhost:8080/v1/.well-known/ready` |
-| `chroma` | AI & Vector DBs | `https://hub.docker.com/r/chromadb/chroma` | `/api/v1/heartbeat` | Routes heartbeat check to `http://localhost:8000/api/v1/heartbeat` |
-| `kafka` | Messaging | `https://hub.docker.com/r/apache/kafka` | `kafka-topics.sh` | Expands `/opt/kafka/bin` PATH for `topics`, `produce`, `consume` |
-| `rabbitmq` | Messaging | `https://hub.docker.com/_/rabbitmq` | `rabbitmqctl` | Routes `status`, `queues` to `rabbitmqctl status` |
-| `pulsar` | Messaging | `https://hub.docker.com/r/apachepulsar/pulsar` | `pulsar-admin` | Expands `/pulsar/bin` PATH for `pulsar-admin` |
-| `nats` | Messaging | `https://hub.docker.com/_/nats` | `nats-server` | Routes execution to `nats-server` |
-| `zookeeper` | Messaging | `https://hub.docker.com/_/zookeeper` | `zkCli.sh` | Expands `/apache-zookeeper/bin` PATH |
-| `schema-registry` | Messaging | `https://hub.docker.com/r/confluentinc/cp-schema-registry` | `/subjects` | Routes schema queries to `http://localhost:8081/subjects` |
-| `kafka-ui` | Messaging | `https://hub.docker.com/r/provectuslabs/kafka-ui` | `/actuator/health` | Routes actuator probe to `http://localhost:8080/actuator/health` |
-| `mosquitto` | Messaging | `https://hub.docker.com/_/eclipse-mosquitto` | `mosquitto_sub` | Expands `/usr/local/bin` PATH for MQTT scripts |
-| `grafana` | Observability | `https://hub.docker.com/r/grafana/grafana` | `grafana-cli` | Expands `/usr/share/grafana/bin` PATH |
-| `prometheus` | Observability | `https://hub.docker.com/r/prom/prometheus` | `promtool` | Expands `/bin:/usr/local/bin` PATH for `promtool` |
-| `jaeger` | Observability | `https://hub.docker.com/r/jaegertracing/all-in-one` | UI Port 16686 | Health check via `http://localhost:16686` |
-| `tempo` | Observability | `https://hub.docker.com/r/grafana/tempo` | `/ready` | Health check via `http://localhost:3200/ready` |
-| `loki` | Observability | `https://hub.docker.com/r/grafana/loki` | `/ready` | Health check via `http://localhost:3100/ready` |
-| `opentelemetry-collector` | Observability | `https://hub.docker.com/r/otel/opentelemetry-collector-contrib` | `otelcol-contrib` | Expands `/` PATH for `otelcol-contrib` |
-| `zipkin` | Observability | `https://hub.docker.com/r/openzipkin/zipkin` | `/health` | Health check via `http://localhost:9411/health` |
-| `alertmanager` | Observability | `https://hub.docker.com/r/prom/alertmanager` | `alertmanager` | Expands `/bin` PATH |
-| `vector` | Observability | `https://hub.docker.com/r/timberio/vector` | `vector` | Expands `/usr/local/bin` PATH |
-| `elasticsearch` | Search Engines | `https://hub.docker.com/_/elasticsearch` | `/_cluster/health` | Routes `health` -> `curl http://localhost:9200/_cluster/health` |
-| `kibana` | Search Engines | `https://hub.docker.com/_/kibana` | `/api/status` | Routes status -> `curl http://localhost:5601/api/status` |
-| `opensearch` | Search Engines | `https://hub.docker.com/r/opensearchproject/opensearch` | HTTP Port 9200 | Routes cluster check to `http://localhost:9200` |
-| `meilisearch` | Search Engines | `https://hub.docker.com/r/getmeili/meilisearch` | `/health` | Health check via `http://localhost:7700/health` |
-| `typesense` | Search Engines | `https://hub.docker.com/r/typesense/typesense` | `/health` | Health check via `http://localhost:8108/health` |
-| `nginx` | Proxy & Gateway | `https://hub.docker.com/_/nginx` | `nginx` | Expands `/usr/sbin:/usr/local/nginx/sbin` PATH |
-| `traefik` | Proxy & Gateway | `https://hub.docker.com/_/traefik` | `traefik` | Expands `/` PATH |
-| `envoy` | Proxy & Gateway | `https://hub.docker.com/r/envoyproxy/envoy` | `envoy` | Expands `/usr/local/bin` PATH |
-| `haproxy` | Proxy & Gateway | `https://hub.docker.com/_/haproxy` | `haproxy` | Expands `/usr/local/sbin` PATH |
-| `caddy` | Proxy & Gateway | `https://hub.docker.com/_/caddy` | `caddy` | Expands `/usr/bin` PATH |
-| `kong` | Proxy & Gateway | `https://hub.docker.com/_/kong` | `kong` | Expands `/usr/local/bin` PATH |
-| `vault` | Security & Identity | `https://hub.docker.com/_/vault` | `vault` | Sets `VAULT_ADDR='http://127.0.0.1:8200'` & runs `vault` |
-| `keycloak` | Security & Identity | `https://hub.docker.com/r/quay.io/keycloak/keycloak` | `/opt/keycloak/bin/kc.sh` | Routes CLI calls to `/opt/keycloak/bin/kc.sh` |
-| `ory-kratos` | Security & Identity | `https://hub.docker.com/r/oryd/kratos` | `kratos` | Expands `/` PATH for `kratos` |
-| `minio` | Dev & Infrastructure | `https://hub.docker.com/r/minio/minio` | `minio` | Expands `/opt/bin` PATH |
-| `jenkins` | Dev & Infrastructure | `https://hub.docker.com/r/jenkins/jenkins` | `jenkins-plugin-cli` | Expands `/usr/local/bin` PATH |
-| `consul` | Dev & Infrastructure | `https://hub.docker.com/_/consul` | `consul` | Expands `/bin` PATH |
-| `etcd` | Dev & Infrastructure | `https://hub.docker.com/r/bitnami/etcd` | `etcdctl` | Expands `/usr/local/bin` PATH |
-| `localstack` | Dev & Infrastructure | `https://hub.docker.com/r/localstack/localstack` | `awslocal` | Auto-wraps AWS CLI calls to `awslocal` |
+| `redis` | Databases | `https://hub.docker.com/_/redis` | `redis-cli` | `rule-redis` / `rule-strategy-redis` |
+| `postgres` | Databases | `https://hub.docker.com/_/postgres` | `psql` | `rule-postgres` / `rule-strategy-postgres` |
+| `mysql` | Databases | `https://hub.docker.com/_/mysql` | `mysql` | `rule-mysql` / `rule-strategy-mysql-mariadb` |
+| `mariadb` | Databases | `https://hub.docker.com/_/mariadb` | `mariadb` | `rule-mariadb` / `rule-strategy-mysql-mariadb` |
+| `mongodb` | Databases | `https://hub.docker.com/_/mongo` | `mongosh` / `mongo` | `rule-mongodb` / `rule-strategy-mongo` |
+| `clickhouse` | Databases | `https://hub.docker.com/r/clickhouse/clickhouse-server` | `clickhouse-client` | `rule-clickhouse` / `rule-strategy-standard-shell` |
+| `surrealdb` | Databases | `https://hub.docker.com/r/surrealdb/surrealdb` | `/surreal` | `rule-surrealdb` / `rule-strategy-distroless` |
+| `cassandra` | Databases | `https://hub.docker.com/_/cassandra` | `cqlsh` | `rule-cassandra` / `rule-strategy-standard-shell` |
+| `cockroachdb` | Databases | `https://hub.docker.com/r/cockroachdb/cockroach` | `cockroach sql` | `rule-cockroachdb` / `rule-strategy-standard-shell` |
+| `timescaledb` | Databases | `https://hub.docker.com/r/timescale/timescaledb` | `psql` | `rule-timescaledb` / `rule-strategy-postgres` |
+| `scylladb` | Databases | `https://hub.docker.com/r/scylladb/scylla` | `cqlsh` | `rule-scylladb` / `rule-strategy-standard-shell` |
+| `influxdb` | Databases | `https://hub.docker.com/_/influxdb` | `influx` | `rule-influxdb` / `rule-strategy-standard-shell` |
+| `neo4j` | Databases | `https://hub.docker.com/_/neo4j` | `cypher-shell` | `rule-neo4j` / `rule-strategy-standard-shell` |
+| `qdrant` | AI & Vector DBs | `https://hub.docker.com/r/qdrant/qdrant` | `/readyz` | `rule-qdrant` / `rule-strategy-standard-shell` |
+| `milvus` | AI & Vector DBs | `https://hub.docker.com/r/milvusdb/milvus` | `/healthz` | `rule-milvus` / `rule-strategy-standard-shell` |
+| `weaviate` | AI & Vector DBs | `https://hub.docker.com/r/semitechnologies/weaviate` | `/v1/.well-known/ready` | `rule-weaviate` / `rule-strategy-standard-shell` |
+| `chroma` | AI & Vector DBs | `https://hub.docker.com/r/chromadb/chroma` | `/api/v1/heartbeat` | `rule-chroma` / `rule-strategy-standard-shell` |
+| `kafka` | Messaging | `https://hub.docker.com/r/apache/kafka` | `kafka-topics.sh` | `rule-kafka` / `rule-strategy-kafka` |
+| `rabbitmq` | Messaging | `https://hub.docker.com/_/rabbitmq` | `rabbitmqctl` | `rule-rabbitmq` / `rule-strategy-standard-shell` |
+| `pulsar` | Messaging | `https://hub.docker.com/r/apachepulsar/pulsar` | `pulsar-admin` | `rule-pulsar` / `rule-strategy-standard-shell` |
+| `nats` | Messaging | `https://hub.docker.com/_/nats` | `nats-server` | `rule-nats` / `rule-strategy-standard-shell` |
+| `zookeeper` | Messaging | `https://hub.docker.com/_/zookeeper` | `zkCli.sh` | `rule-zookeeper` / `rule-strategy-standard-shell` |
+| `schema-registry` | Messaging | `https://hub.docker.com/r/confluentinc/cp-schema-registry` | `/subjects` | `rule-schema-registry` / `rule-strategy-standard-shell` |
+| `kafka-ui` | Messaging | `https://hub.docker.com/r/provectuslabs/kafka-ui` | `/actuator/health` | `rule-kafka-ui` / `rule-strategy-standard-shell` |
+| `mosquitto` | Messaging | `https://hub.docker.com/_/eclipse-mosquitto` | `mosquitto_sub` | `rule-mosquitto` / `rule-strategy-standard-shell` |
+| `grafana` | Observability | `https://hub.docker.com/r/grafana/grafana` | `grafana-cli` | `rule-grafana` / `rule-strategy-standard-shell` |
+| `prometheus` | Observability | `https://hub.docker.com/r/prom/prometheus` | `promtool` | `rule-prometheus` / `rule-strategy-standard-shell` |
+| `jaeger` | Observability | `https://hub.docker.com/r/jaegertracing/all-in-one` | UI Port 16686 | `rule-jaeger` / `rule-strategy-standard-shell` |
+| `tempo` | Observability | `https://hub.docker.com/r/grafana/tempo` | `/ready` | `rule-tempo` / `rule-strategy-standard-shell` |
+| `loki` | Observability | `https://hub.docker.com/r/grafana/loki` | `/ready` | `rule-loki` / `rule-strategy-standard-shell` |
+| `opentelemetry-collector` | Observability | `https://hub.docker.com/r/otel/opentelemetry-collector-contrib` | `otelcol-contrib` | `rule-opentelemetry-collector` / `rule-strategy-standard-shell` |
+| `zipkin` | Observability | `https://hub.docker.com/r/openzipkin/zipkin` | `/health` | `rule-zipkin` / `rule-strategy-standard-shell` |
+| `alertmanager` | Observability | `https://hub.docker.com/r/prom/alertmanager` | `alertmanager` | `rule-alertmanager` / `rule-strategy-standard-shell` |
+| `vector` | Observability | `https://hub.docker.com/r/timberio/vector` | `vector` | `rule-vector` / `rule-strategy-standard-shell` |
+| `elasticsearch` | Search Engines | `https://hub.docker.com/_/elasticsearch` | `/_cluster/health` | `rule-elasticsearch` / `rule-strategy-elasticsearch` |
+| `kibana` | Search Engines | `https://hub.docker.com/_/kibana` | `/api/status` | `rule-kibana` / `rule-strategy-standard-shell` |
+| `opensearch` | Search Engines | `https://hub.docker.com/r/opensearchproject/opensearch` | HTTP Port 9200 | `rule-opensearch` / `rule-strategy-elasticsearch` |
+| `meilisearch` | Search Engines | `https://hub.docker.com/r/getmeili/meilisearch` | `/health` | `rule-meilisearch` / `rule-strategy-standard-shell` |
+| `typesense` | Search Engines | `https://hub.docker.com/r/typesense/typesense` | `/health` | `rule-typesense` / `rule-strategy-standard-shell` |
+| `nginx` | Proxy & Gateway | `https://hub.docker.com/_/nginx` | `nginx` | `rule-nginx` / `rule-strategy-standard-shell` |
+| `traefik` | Proxy & Gateway | `https://hub.docker.com/_/traefik` | `traefik` | `rule-traefik` / `rule-strategy-standard-shell` |
+| `envoy` | Proxy & Gateway | `https://hub.docker.com/r/envoyproxy/envoy` | `envoy` | `rule-envoy` / `rule-strategy-standard-shell` |
+| `haproxy` | Proxy & Gateway | `https://hub.docker.com/_/haproxy` | `haproxy` | `rule-haproxy` / `rule-strategy-standard-shell` |
+| `caddy` | Proxy & Gateway | `https://hub.docker.com/_/caddy` | `caddy` | `rule-caddy` / `rule-strategy-standard-shell` |
+| `kong` | Proxy & Gateway | `https://hub.docker.com/_/kong` | `kong` | `rule-kong` / `rule-strategy-standard-shell` |
+| `vault` | Security & Identity | `https://hub.docker.com/_/vault` | `vault` | `rule-vault` / `rule-strategy-standard-shell` |
+| `keycloak` | Security & Identity | `https://hub.docker.com/r/quay.io/keycloak/keycloak` | `/opt/keycloak/bin/kc.sh` | `rule-keycloak` / `rule-strategy-standard-shell` |
+| `ory-kratos` | Security & Identity | `https://hub.docker.com/r/oryd/kratos` | `kratos` | `rule-ory-kratos` / `rule-strategy-distroless` |
+| `minio` | Dev & Infrastructure | `https://hub.docker.com/r/minio/minio` | `minio` | `rule-minio` / `rule-strategy-standard-shell` |
+| `jenkins` | Dev & Infrastructure | `https://hub.docker.com/r/jenkins/jenkins` | `jenkins-plugin-cli` | `rule-jenkins` / `rule-strategy-standard-shell` |
+| `consul` | Dev & Infrastructure | `https://hub.docker.com/_/consul` | `consul` | `rule-consul` / `rule-strategy-standard-shell` |
+| `etcd` | Dev & Infrastructure | `https://hub.docker.com/r/bitnami/etcd` | `etcdctl` | `rule-etcd` / `rule-strategy-standard-shell` |
+| `localstack` | Dev & Infrastructure | `https://hub.docker.com/r/localstack/localstack` | `awslocal` | `rule-localstack` / `rule-strategy-standard-shell` |
 
 ---
 
