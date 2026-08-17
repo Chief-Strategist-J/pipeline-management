@@ -24,6 +24,11 @@ import {
   Download,
   Pause,
   Zap,
+  LogOut,
+  ShieldAlert,
+  HardDriveDownload,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { DOCKER_HELP_COMMANDS, DEFAULT_HELP_COMMANDS } from "../../constants/docker-help.constants";
 import { DOCKER_IMAGES_CATALOG } from "../../domain/docker-images.catalog";
@@ -61,6 +66,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [fontSize, setFontSize] = useState<"xs" | "sm" | "base">("xs");
 
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [logFilter, setLogFilter] = useState("");
@@ -77,10 +83,15 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
     status: "running",
   });
 
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const terminalEndRef = useRef<HTMLDivElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const helpCommands = DOCKER_HELP_COMMANDS[imageId] || DEFAULT_HELP_COMMANDS;
+  const catalogItem = DOCKER_IMAGES_CATALOG.find((img) => img.id === imageId);
 
   useEffect(() => {
     fetchContainerDetails();
@@ -263,11 +274,51 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleExitClick = () => {
+    setShowExitModal(true);
+  };
+
+  const handleKeepRunningAndExit = () => {
+    setShowExitModal(false);
+    if (onBackToLab) onBackToLab();
+  };
+
+  const handleProceedToStopCleanup = () => {
+    setShowExitModal(false);
+    setShowBackupModal(true);
+  };
+
+  const handleConfirmDeleteContainer = async (withBackup: boolean) => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/docker-lab/containers?containerId=${containerId}&backup=${withBackup}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (withBackup && data.backupContent && data.backupFilename) {
+          const blob = new Blob([data.backupContent], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = data.backupFilename;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      }
+    } catch {
+      // Intact
+    } finally {
+      setIsDeleting(false);
+      setShowBackupModal(false);
+      if (onBackToLab) onBackToLab();
+    }
+  };
+
   const filteredLogs = logs.filter((l) =>
     logFilter ? l.message.toLowerCase().includes(logFilter.toLowerCase()) : true
   );
-
-  const catalogItem = DOCKER_IMAGES_CATALOG.find((img) => img.id === imageId);
 
   const filteredEnvVars = (catalogItem?.defaultConfig?.envVars || []).filter((env) =>
     envFilter
@@ -278,13 +329,11 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
 
   return (
     <div className="space-y-4 h-[calc(100vh-6.5rem)] flex flex-col w-full">
-      <div className="flex items-center justify-between border-b border-white/10 pb-3.5 px-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-3.5 px-1 gap-3">
         <div className="flex items-center gap-3">
-          {onBackToLab && (
-            <Button variant="secondary" size="sm" onClick={onBackToLab}>
-              <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to Lab
-            </Button>
-          )}
+          <Button variant="secondary" size="sm" onClick={handleExitClick}>
+            <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to Lab
+          </Button>
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-extrabold text-base shadow-lg shadow-emerald-500/10">
@@ -318,15 +367,45 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 overflow-hidden">
         <div className="lg:col-span-7 xl:col-span-8 flex flex-col bg-slate-950 rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
           <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-white/10">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-full bg-rose-500/80 inline-block" />
+                <span className="h-3 w-3 rounded-full bg-amber-500/80 inline-block" />
+                <span className="h-3 w-3 rounded-full bg-emerald-500/80 inline-block" />
+              </div>
+              <div className="h-4 w-px bg-white/10" />
               <TerminalIcon className="h-4 w-4 text-emerald-400" />
               <span className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">Interactive Container Terminal Shell</span>
               <span className="text-[10px] text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded border border-white/5">
-                3-Phase Rules Engine
+                Rules Engine
               </span>
             </div>
 
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-white/5">
+                <button
+                  onClick={() => setFontSize("xs")}
+                  className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${fontSize === "xs" ? "bg-white/10 text-white" : "text-slate-500"}`}
+                  title="Small Font"
+                >
+                  Aa-
+                </button>
+                <button
+                  onClick={() => setFontSize("sm")}
+                  className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${fontSize === "sm" ? "bg-white/10 text-white" : "text-slate-500"}`}
+                  title="Medium Font"
+                >
+                  Aa
+                </button>
+                <button
+                  onClick={() => setFontSize("base")}
+                  className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${fontSize === "base" ? "bg-white/10 text-white" : "text-slate-500"}`}
+                  title="Large Font"
+                >
+                  Aa+
+                </button>
+              </div>
+
               {history.length > 0 && (
                 <>
                   <button
@@ -335,7 +414,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
                     title="Export Terminal Session Logs"
                   >
                     <Download className="h-3 w-3" />
-                    <span className="text-[10px] font-bold">Export Log</span>
+                    <span className="text-[10px] font-bold">Export</span>
                   </button>
 
                   <button
@@ -351,7 +430,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 p-4 overflow-y-auto font-mono text-xs space-y-3 bg-slate-950/90">
+          <div className={`flex-1 p-4 overflow-y-auto font-mono ${fontSize === "xs" ? "text-xs" : fontSize === "sm" ? "text-sm" : "text-base"} space-y-3 bg-slate-950/90`}>
             {history.length === 0 && (
               <div className="p-4 bg-slate-900/50 rounded-xl border border-white/5 space-y-2">
                 <p className="text-emerald-400 font-bold flex items-center gap-2">
@@ -387,7 +466,7 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
                     item.exitCode === 0
                       ? "bg-slate-900/90 border-emerald-500/20 text-slate-200"
                       : "bg-rose-950/30 border-rose-500/30 text-rose-300"
-                  } whitespace-pre-wrap font-mono text-[11px] leading-relaxed break-all`}
+                  } whitespace-pre-wrap font-mono ${fontSize === "xs" ? "text-[11px]" : fontSize === "sm" ? "text-xs" : "text-sm"} leading-relaxed break-all`}
                 >
                   {item.output}
                 </div>
@@ -690,6 +769,101 @@ export const ContainerWorkspace: React.FC<ContainerWorkspaceProps> = ({
           </div>
         </div>
       </div>
+
+      {showExitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-amber-400">
+                <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <h3 className="text-base font-extrabold text-white">Leave Container Workspace?</h3>
+              </div>
+              <button onClick={() => setShowExitModal(false)} className="text-slate-400 hover:text-white">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to exit the workspace for container <span className="font-bold text-white font-mono">{containerName}</span>?
+            </p>
+
+            <div className="space-y-2.5 pt-2">
+              <button
+                onClick={handleKeepRunningAndExit}
+                className="w-full p-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center justify-between transition-all"
+              >
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Keep Container Running & Return
+                </span>
+                <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded">Active</span>
+              </button>
+
+              <button
+                onClick={handleProceedToStopCleanup}
+                className="w-full p-3 rounded-xl bg-rose-600/20 hover:bg-rose-600/40 border border-rose-500/30 text-rose-200 text-xs font-bold flex items-center justify-between transition-all"
+              >
+                <span className="flex items-center gap-2">
+                  <Trash2 className="h-4 w-4 text-rose-400" /> Stop & Cleanup Container
+                </span>
+                <span className="text-[10px] bg-rose-500/20 px-2 py-0.5 rounded">Teardown</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBackupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-blue-400">
+                <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <HardDriveDownload className="h-5 w-5" />
+                </div>
+                <h3 className="text-base font-extrabold text-white">Container Data Backup</h3>
+              </div>
+              <button onClick={() => setShowBackupModal(false)} className="text-slate-400 hover:text-white">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Would you like to export a complete data backup (inspect configs, active logs, environment variables) before removing container <span className="font-bold text-white font-mono">{containerName}</span>?
+            </p>
+
+            <div className="space-y-2.5 pt-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleConfirmDeleteContainer(true)}
+                isLoading={isDeleting}
+                className="w-full py-2.5"
+              >
+                <HardDriveDownload className="h-4 w-4 mr-2" /> Backup & Remove Container
+              </Button>
+
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => handleConfirmDeleteContainer(false)}
+                isLoading={isDeleting}
+                className="w-full py-2.5"
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Remove Without Backup
+              </Button>
+
+              <button
+                onClick={() => setShowBackupModal(false)}
+                className="w-full text-center text-xs text-slate-400 hover:text-white py-1"
+              >
+                Cancel & Return
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

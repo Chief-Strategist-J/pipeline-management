@@ -45,23 +45,33 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Missing containerId" }, { status: 400 });
   }
 
-  let backupPath: string | undefined;
+  let backupFilename: string | undefined;
+  let backupContent: string | undefined;
 
   if (backup) {
     const ts = Date.now();
-    backupPath = `/tmp/docker-lab-backup-${containerId}-${ts}`;
-    const { stdout: mountsOut } = await runCmd(
-      `docker inspect --format '{{range .Mounts}}{{.Destination}} {{end}}' ${containerId}`
-    );
+    backupFilename = `docker-lab-backup-${containerId.substring(0, 8)}-${ts}.json`;
 
-    const mountPaths = mountsOut.trim().split(" ").filter(Boolean);
+    const { stdout: logsOut } = await runCmd(`docker logs --tail 500 ${containerId}`);
+    const { stdout: inspectOut } = await runCmd(`docker inspect ${containerId}`);
 
-    if (mountPaths.length > 0) {
-      await runCmd(`mkdir -p ${backupPath}`);
-      for (const mp of mountPaths) {
-        await runCmd(`docker cp ${containerId}:${mp} ${backupPath}/ || true`);
-      }
+    let parsedInspect: any = [];
+    try {
+      parsedInspect = inspectOut ? JSON.parse(inspectOut) : [];
+    } catch {
+      parsedInspect = inspectOut;
     }
+
+    backupContent = JSON.stringify(
+      {
+        containerId,
+        timestamp: new Date().toISOString(),
+        inspect: parsedInspect,
+        logs: logsOut || "",
+      },
+      null,
+      2
+    );
   }
 
   await runCmd(`docker rm -f ${containerId}`);
@@ -69,6 +79,7 @@ export async function DELETE(request: Request) {
   return NextResponse.json({
     success: true,
     containerId,
-    backupPath,
+    backupFilename,
+    backupContent,
   });
 }
