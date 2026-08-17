@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { DOCKER_IMAGES_CATALOG } from "@/features/docker-lab/domain/docker-images.catalog";
+import type { ContainerConfig } from "@/features/docker-lab/domain/entities/docker-image.entity";
 
 const execAsync = promisify(exec);
 
-async function runCmd(command: string, timeoutMs: number = 120000): Promise<{ stdout: string; stderr: string }> {
+async function runCmd(command: string, timeoutMs: number = 30000): Promise<{ stdout: string; stderr: string }> {
   try {
     return await execAsync(command, { timeout: timeoutMs, maxBuffer: 1024 * 1024 * 10 });
   } catch (err: any) {
@@ -13,142 +13,79 @@ async function runCmd(command: string, timeoutMs: number = 120000): Promise<{ st
   }
 }
 
-function sanitizeName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
-}
-
-async function getAvailableHostPort(desiredPort: number): Promise<number> {
-  let port = desiredPort;
-  while (port < desiredPort + 50) {
-    const { stdout } = await runCmd(`docker ps --format '{{.Ports}}' | grep ":${port}->" || true`);
-    if (!stdout.trim()) {
-      return port;
-    }
-    port++;
-  }
-  return desiredPort;
-}
-
-async function buildDockerRunCommand(config: any): Promise<{ commands: string[]; containerNames: string[] }> {
-  const {
-    imageId, tag, containerName, ports = [], envVars = [], volumes = [],
-    network, replicas = 1, resources, restartPolicy, customCommand, labels = []
-  } = config;
-
-  const catalogItem = DOCKER_IMAGES_CATALOG.find((img) => img.id === imageId);
-  const imageRepository = config.image || catalogItem?.image || imageId;
-  const imageTag = tag || catalogItem?.defaultTag || "latest";
-
-  const commands: string[] = [];
-  const containerNames: string[] = [];
-  const baseName = sanitizeName(containerName || imageId);
-  const randomSuffix = Math.random().toString(36).substring(2, 6);
-
-  for (let i = 0; i < replicas; i++) {
-    const replicaSuffix = replicas > 1 ? `-replica-${i + 1}` : "";
-    const name = `dlab-${baseName}-${randomSuffix}${replicaSuffix}`;
-    containerNames.push(name);
-
-    const parts: string[] = ["docker", "run", "-d", "--name", name];
-
-    parts.push("--label", "managed-by=infra-gateway-docker-lab");
-    parts.push("--label", `image-id=${imageId}`);
-
-    for (const p of ports) {
-      const targetHostPort = await getAvailableHostPort(p.hostPort + i);
-      parts.push("-p", `${targetHostPort}:${p.containerPort}/${p.protocol || "tcp"}`);
-    }
-
-    envVars.forEach((e: any) => {
-      parts.push("-e", `${e.key}=${e.value}`);
-    });
-
-    volumes.forEach((v: any) => {
-      parts.push("-v", `${v.hostPath}:${v.containerPath}:${v.mode || "rw"}`);
-    });
-
-    labels.forEach((l: any) => {
-      parts.push("--label", `${l.key}=${l.value}`);
-    });
-
-    if (network?.mode === "host") parts.push("--network", "host");
-    else if (network?.mode === "none") parts.push("--network", "none");
-    else if (network?.mode === "custom" && network.customNetworkName) parts.push("--network", network.customNetworkName);
-
-    if (resources?.cpus) parts.push("--cpus", resources.cpus);
-    if (resources?.memoryMb) parts.push("--memory", `${resources.memoryMb}m`);
-    if (restartPolicy && restartPolicy !== "no") parts.push("--restart", restartPolicy);
-
-    parts.push(`${imageRepository}:${imageTag}`);
-
-    if (customCommand) parts.push(...customCommand.split(" "));
-
-    commands.push(parts.join(" "));
-  }
-
-  return { commands, containerNames };
-}
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { config } = body;
 
-    if (!config || !config.imageId) {
-      return NextResponse.json({ error: "Invalid container configuration" }, { status: 400 });
+    const configList: ContainerConfig[] = Array.isArray(body.configs)
+      ? body.configs
+      : body.config
+      ? [body.config]
+      : Array.isArray(body)
+      ? body
+      : [body];
+
+    if (!configList.length || !configList[0]?.imageId) {
+      return NextResponse.json({ error: "Invalid ContainerConfig payload" }, { status: 400 });
     }
 
-    const { commands, containerNames } = await buildDockerRunCommand(config);
-    const containers: any[] = [];
-    let error: string | undefined;
+    const networkName = body.networkName || configList[0].network?.customNetworkName || "shared-lab-net";
 
-    for (let i = 0; i < commands.length; i++) {
-      const targetName = containerNames[i];
-      
-      await runCmd(`docker rm -f ${targetName}`);
+    await runCmd(`docker network create ${networkName} || true`);
 
-      const { stdout, stderr } = await runCmd(commands[i], 120000);
+    const results = [];
 
-      if (!stdout && stderr && stderr.includes("Error response from daemon")) {
-        error = `Docker Execution Error: ${stderr.trim()}`;
-        break;
-      }
+    for (let i = 0; i < configList.length; i++) {
+      const config = configList[i];
+      const name = config.containerName || `${config.imageId}-node-${Date.now().toString(36).substring(4)}`;
+      const alias = config.imageId;
 
-      await runCmd(`docker start ${targetName}`);
-
-      const { stdout: inspectOut } = await runCmd(
-        `docker inspect --format '{{.ID}} {{.Name}} {{.State.Status}} {{range $p, $conf := .NetworkSettings.Ports}}{{$p}}->{{(index $conf 0).HostPort}} {{end}}' ${targetName}`
-      );
-
-      const parts = inspectOut.trim().split(" ");
-      const rawHexId = parts[0] || "";
-      const nameFromInspect = (parts[1] || "").replace(/^\//, "");
-      const status = parts[2] || "running";
-      const portBindings = parts.slice(3).filter(Boolean);
-
-      const cleanContainerId = /^[a-f0-9]{12,64}$/i.test(rawHexId)
-        ? rawHexId.substring(0, 12)
-        : targetName;
-
-      containers.push({
-        containerId: cleanContainerId,
-        containerName: nameFromInspect || targetName,
-        replicaIndex: i + 1,
-        status: status === "running" ? "running" : status,
-        ports: portBindings,
+      let portFlags = "";
+      (config.ports || []).forEach((p) => {
+        if (p.hostPort && p.containerPort) {
+          portFlags += ` -p ${p.hostPort}:${p.containerPort}/${p.protocol || "tcp"}`;
+        }
       });
-    }
 
-    if (error) {
-      return NextResponse.json({ error }, { status: 500 });
+      let envFlags = "";
+      (config.envVars || []).forEach((e) => {
+        if (e.key) {
+          envFlags += ` -e "${e.key}=${e.value || ""}"`;
+        }
+      });
+
+      const labelFlags = ` --label managed-by=infra-gateway-docker-lab --label image-id=${config.imageId}`;
+
+      const runCommand = `docker run -d --name ${name} --network ${networkName} --network-alias ${alias}${portFlags}${envFlags}${labelFlags} ${config.imageId}:${config.tag || "latest"}`;
+
+      const { stdout: containerId, stderr } = await runCmd(runCommand);
+
+      if (containerId.trim()) {
+        results.push({
+          containerId: containerId.trim().substring(0, 12),
+          containerName: name,
+          imageId: config.imageId,
+          status: "running",
+          ports: (config.ports || []).map((p) => `${p.hostPort}:${p.containerPort}`),
+        });
+      } else {
+        results.push({
+          containerId: "",
+          containerName: name,
+          imageId: config.imageId,
+          status: "error",
+          error: stderr || "Container startup failed",
+          ports: [],
+        });
+      }
     }
 
     return NextResponse.json({
-      imageId: config.imageId,
-      containers,
-      startedAt: new Date().toISOString(),
+      success: true,
+      networkName,
+      containers: results,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message || "Multi-container stack execution failed" }, { status: 500 });
   }
 }

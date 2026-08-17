@@ -97,17 +97,11 @@ export default function DockerLabPage() {
         selectedCategory={selectedCategory}
         searchQuery={searchQuery}
         runningContainers={runningContainers}
-        selectedImageIds={selectedImageIds}
         executingImageId={executingImageId}
         onSelectCategory={setCategory}
         onSearchChange={setSearchQuery}
-        onToggleSelectImage={toggleSelectImage}
-        onSelectAll={selectAll}
-        onClearSelection={clearSelection}
         onConfigure={openConfigModal}
         onQuickExecute={executeImage}
-        onExecuteSelected={executeSelectedImages}
-        onPreviewSelectedConfig={previewSelectedConfig}
         isLoading={isLoading}
       />
 
