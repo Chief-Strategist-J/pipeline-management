@@ -38,6 +38,7 @@ export interface PushRequestDto {
   branchName?: string;
   commitMessage?: string;
   isPrivate?: boolean;
+  activeTemplateId?: string;
   treeData?: any[];
 }
 
@@ -82,7 +83,7 @@ export class GitHubPushService {
     const authenticatedUser = userData.login;
 
     const { owner, actualRepo } = GitHubPushRulesEngine.parseOwnerRepo(body.repoName, authenticatedUser);
-    const filesToCommit = TreeFlatteningService.resolveTreeDataWithFallback(body.treeData || []);
+    const filesToCommit = TreeFlatteningService.resolveTreeDataWithFallback(body.treeData || [], body.activeTemplateId);
 
     const gqlResult = await GitHubGraphQLService.executePushPipeline({
       authHeaders,

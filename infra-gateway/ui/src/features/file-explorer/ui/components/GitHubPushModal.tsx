@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { X, GitBranch, Loader2, ExternalLink, ShieldCheck, CheckCircle2, AlertCircle, Database } from "lucide-react";
 import { pushToGitHubAction } from "../../state/file-explorer.slice";
-import { selectIsPushingGitHub, selectGithubPushResult, selectTreeData } from "../../readModels/file-explorer.selectors";
+import { selectIsPushingGitHub, selectGithubPushResult, selectTreeData, selectActiveTemplateId } from "../../readModels/file-explorer.selectors";
 
 export const GitHubIcon: React.FC<{ className?: string }> = ({ className = "h-4 w-4" }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -21,6 +21,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
   const isPushing = useSelector(selectIsPushingGitHub);
   const pushResult = useSelector(selectGithubPushResult);
   const activeTreeData = useSelector(selectTreeData);
+  const activeTemplateId = useSelector(selectActiveTemplateId);
 
   const [token, setToken] = useState("");
   const [repoName, setRepoName] = useState("");

@@ -1,17 +1,20 @@
 /**
  * ALGORITHM: TREE FLATTENING & RELATIVE PATH STRIPPING
  * ============================================================================
- * 1. RECURSIVE TRAVERSAL:
+ * 1. RECURSIVE TRAVERSAL & PATH CLEANING:
  *    - Traverses nested TreeItem hierarchy (`type: "file"` vs `type: "folder"`).
- *    - Accumulates paths as `parentPath/cleanNodeName`.
- *    - Extract file content safely from `node.content` or fallback to `""`.
+ *    - Normalizes slashes and strips leading/trailing slashes.
+ *    - Safely converts `content` to string (fallback to `""`).
  * 
- * 2. AUTOMATIC ROOT PREFIX STRIPPING:
+ * 2. DEDUPLICATION BY RELATIVE PATH:
+ *    - Filters out duplicate path entries keeping the last updated version.
+ * 
+ * 3. AUTOMATIC ROOT PREFIX STRIPPING:
  *    - Detects if all files share a common root container folder (e.g. `nextjs-extreme-scale/`).
  *    - Strips the root container prefix so files sit cleanly at GitHub repo root (`package.json`, `src/index.ts`).
  * 
- * 3. FALLBACK CATALOG RESOLUTION:
- *    - If workspace tree is empty, falls back to the default architecture template in PROJECT_TEMPLATES_CATALOG.
+ * 4. ACTIVE TEMPLATE CATALOG RESOLUTION EDGE CASE:
+ *    - If workspace tree is empty, matches `activeTemplateId` from `PROJECT_TEMPLATES_CATALOG`.
  * ============================================================================
  */
 
@@ -41,10 +44,12 @@ export class TreeFlatteningService {
         if (isFolder && hasChildren) {
           recurse((node as any).children, pathSegment);
         } else if (node.type === "file" || !hasChildren) {
-          const filePath = node.path ? node.path.replace(/\\/g, "/") : pathSegment;
+          const rawPath = node.path ? node.path.replace(/\\/g, "/") : pathSegment;
+          const cleanFilePath = rawPath.replace(/^\/+/, "");
           const nodeContent = (node as any).content;
+
           rawFiles.push({
-            path: filePath,
+            path: cleanFilePath,
             content: typeof nodeContent === "string" ? nodeContent : "",
           });
         }
@@ -55,27 +60,37 @@ export class TreeFlatteningService {
 
     if (rawFiles.length === 0) return [];
 
-    const firstPath = rawFiles[0].path;
+    const fileMap = new Map<string, string>();
+    for (const f of rawFiles) {
+      if (f.path) {
+        fileMap.set(f.path, f.content);
+      }
+    }
+
+    let uniqueFiles: FlatFileEntry[] = Array.from(fileMap.entries()).map(([path, content]) => ({ path, content }));
+
+    const firstPath = uniqueFiles[0].path;
     const firstSlashIdx = firstPath.indexOf("/");
 
     if (firstSlashIdx !== -1) {
       const candidatePrefix = firstPath.substring(0, firstSlashIdx + 1);
-      const allStartWithPrefix = rawFiles.every((f) => f.path.startsWith(candidatePrefix));
+      const allStartWithPrefix = uniqueFiles.every((f) => f.path.startsWith(candidatePrefix));
       if (allStartWithPrefix) {
-        return rawFiles.map((f) => ({
+        return uniqueFiles.map((f) => ({
           path: f.path.substring(candidatePrefix.length),
           content: f.content,
         }));
       }
     }
 
-    return rawFiles;
+    return uniqueFiles;
   }
 
-  public static resolveTreeDataWithFallback(treeData: TreeItem[] = []): FlatFileEntry[] {
+  public static resolveTreeDataWithFallback(treeData: TreeItem[] = [], activeTemplateId?: string): FlatFileEntry[] {
     let files = this.flattenTree(treeData);
     if (files.length === 0 && PROJECT_TEMPLATES_CATALOG.length > 0) {
-      files = this.flattenTree(PROJECT_TEMPLATES_CATALOG[0].tree);
+      const matchedTemplate = PROJECT_TEMPLATES_CATALOG.find((t) => t.id === activeTemplateId) || PROJECT_TEMPLATES_CATALOG[0];
+      files = this.flattenTree(matchedTemplate.tree);
     }
     return files;
   }
