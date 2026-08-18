@@ -78,14 +78,6 @@ export class GitHubRestFallbackService {
         const refsData = await refsRes.json();
         if (Array.isArray(refsData) && refsData.length > 0) {
           baseCommitSha = refsData[0].object.sha;
-          await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
-            method: "POST",
-            headers: authHeaders,
-            body: JSON.stringify({
-              ref: `refs/heads/${branch}`,
-              sha: baseCommitSha,
-            }),
-          });
         }
       }
     }
@@ -134,7 +126,7 @@ export class GitHubRestFallbackService {
     }
     const newCommit = await createCommitRes.json();
 
-    await fetch(
+    const patchRefRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`,
       {
         method: "PATCH",
@@ -145,6 +137,17 @@ export class GitHubRestFallbackService {
         }),
       }
     );
+
+    if (!patchRefRes.ok) {
+      await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({
+          ref: `refs/heads/${branch}`,
+          sha: newCommit.sha,
+        }),
+      });
+    }
 
     const fullHash = newCommit.sha;
     return {
