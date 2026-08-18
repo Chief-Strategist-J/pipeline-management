@@ -14,6 +14,7 @@ import {
   Info,
 } from "lucide-react";
 import { selectOpenTabs } from "../../readModels/file-explorer.selectors";
+import { FileDiffModal } from "./FileDiffModal";
 
 interface GitCommitItem {
   shortHash: string;
@@ -42,6 +43,12 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ onSync, 
   const [totalCommits, setTotalCommits] = useState<number>(0);
   const [currentBranch, setCurrentBranch] = useState<string>("main");
   const [loading, setLoading] = useState<boolean>(true);
+
+  const [selectedDiffTab, setSelectedDiffTab] = useState<{
+    name: string;
+    path: string;
+    content?: string;
+  } | null>(null);
 
   const fetchGitHistory = async () => {
     setLoading(true);
@@ -232,7 +239,9 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ onSync, 
                 openTabs.map((tab: { id: string; name: string; path: string; content?: string }) => (
                   <div
                     key={tab.id}
-                    className="flex items-center justify-between text-amber-400 px-2 py-1 hover:bg-[#2a2d2e] rounded cursor-pointer"
+                    onClick={() => setSelectedDiffTab(tab)}
+                    className="flex items-center justify-between text-amber-400 px-2 py-1 hover:bg-[#2a2d2e] rounded cursor-pointer transition-colors"
+                    title="Click to view file diff"
                   >
                     <div className="flex items-center gap-1.5 truncate">
                       <FileCode className="h-3.5 w-3.5 text-amber-400 shrink-0" />
@@ -246,6 +255,17 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ onSync, 
           )}
         </div>
       </div>
+
+      {selectedDiffTab && (
+        <FileDiffModal
+          isOpen={!!selectedDiffTab}
+          onClose={() => setSelectedDiffTab(null)}
+          fileName={selectedDiffTab.name}
+          filePath={selectedDiffTab.path}
+          originalContent=""
+          currentContent={selectedDiffTab.content || ""}
+        />
+      )}
     </div>
   );
 };

@@ -17,7 +17,10 @@ export async function GET() {
 
     const pushLogs = await db
       .collection("github_push_history")
-      .find({})
+      .find({
+        author: { $nin: ["testuser", "chief-strategist"] },
+        shortHash: { $nin: ["sha_e2e", "sha_new"] },
+      })
       .sort({ pushedAt: -1 })
       .limit(50)
       .toArray();
