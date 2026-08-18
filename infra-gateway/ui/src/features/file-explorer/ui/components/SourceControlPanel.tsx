@@ -229,7 +229,7 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ onSync, 
                   No active open files in workspace.
                 </div>
               ) : (
-                openTabs.map((tab) => (
+                openTabs.map((tab: { id: string; name: string; path: string; content?: string }) => (
                   <div
                     key={tab.id}
                     className="flex items-center justify-between text-amber-400 px-2 py-1 hover:bg-[#2a2d2e] rounded cursor-pointer"
