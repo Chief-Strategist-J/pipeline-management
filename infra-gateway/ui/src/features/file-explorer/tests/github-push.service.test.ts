@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GitHubPushService } from "../application/services/github-push.service";
+import { GitHubCredentialsService } from "../application/services/github-credentials.service";
 
 describe("GitHubPushService Integration Tests", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(GitHubCredentialsService, "getActiveToken").mockResolvedValue(null);
+    vi.spyOn(GitHubCredentialsService, "saveActiveToken").mockResolvedValue(undefined);
+    vi.spyOn(GitHubCredentialsService, "recordPushCommit").mockResolvedValue(undefined);
   });
 
   it("should return UNAUTHORIZED response when PAT token is missing", async () => {

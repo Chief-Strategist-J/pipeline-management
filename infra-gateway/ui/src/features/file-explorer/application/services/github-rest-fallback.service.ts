@@ -11,13 +11,16 @@
  * 3. BRANCH BASE POINTER RESOLUTION (`fetchBranchDetails`):
  *    - Resolves base commit SHA and tree SHA (`GET /repos/{owner}/{repo}/branches/{branch}`).
  * 
- * 4. GIT TREE CREATION (`createGitTree`):
+ * 4. EMPTY REPOSITORY AUTO-INITIALIZATION EDGE CASE (`initializeEmptyRepository`):
+ *    - If GitHub returns HTTP 409 Conflict ("Git Repository is empty"), creates initial commit via Contents API (`PUT /contents/README.md`).
+ * 
+ * 5. GIT TREE CREATION (`createGitTree`):
  *    - Creates remote tree containing workspace additions (`POST /repos/{owner}/{repo}/git/trees`).
  * 
- * 5. GIT COMMIT CREATION (`createGitCommit`):
+ * 6. GIT COMMIT CREATION (`createGitCommit`):
  *    - Creates commit object pointing to new tree SHA (`POST /repos/{owner}/{repo}/git/commits`).
  * 
- * 6. BRANCH REF UPDATE & CREATION (`updateOrCreateBranchRef`):
+ * 7. BRANCH REF UPDATE & CREATION (`updateOrCreateBranchRef`):
  *    - Updates branch pointer via `PATCH /git/refs/heads/{branch}`.
  *    - Falls back to `POST /git/refs` if branch reference does not exist yet.
  * ============================================================================
@@ -50,7 +53,7 @@ export class GitHubRestFallbackService {
 
   private static async requestGitHubApi(
     path: string,
-    method: "GET" | "POST" | "PATCH",
+    method: "GET" | "POST" | "PATCH" | "PUT",
     headers: Record<string, string>,
     body?: unknown
   ): Promise<{ ok: boolean; status: number; data?: any; errorText?: string }> {
@@ -102,6 +105,23 @@ export class GitHubRestFallbackService {
     return { repoUrl: check.data?.html_url || defaultRepoUrl, repoCreated: false };
   }
 
+  private static async initializeEmptyRepository(
+    headers: Record<string, string>,
+    owner: string,
+    repo: string
+  ): Promise<boolean> {
+    const readmeContent = Buffer.from(`# ${repo}\n\nSynced from OpenVSCode IDE`).toString("base64");
+    const res = await this.requestGitHubApi(`/repos/${owner}/${repo}/contents/README.md`, "PUT", headers, {
+      message: "Initial commit",
+      content: readmeContent,
+    });
+    if (res.ok) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return true;
+    }
+    return false;
+  }
+
   private static async fetchBranchDetails(
     headers: Record<string, string>,
     owner: string,
@@ -133,7 +153,7 @@ export class GitHubRestFallbackService {
     repo: string,
     baseTreeSha: string | null,
     filesToCommit: FlatFileEntry[]
-  ): Promise<{ treeSha?: string; error?: string }> {
+  ): Promise<{ treeSha?: string; status?: number; error?: string }> {
     const treeEntries = filesToCommit.map((f) => ({
       path: f.path.replace(/^\/+/, ""),
       mode: "100644",
@@ -147,7 +167,7 @@ export class GitHubRestFallbackService {
     });
 
     if (!res.ok) {
-      return { error: `Failed to create Git Tree: ${res.errorText}` };
+      return { status: res.status, error: `Failed to create Git Tree: ${res.errorText}` };
     }
 
     return { treeSha: res.data.sha };
@@ -202,9 +222,20 @@ export class GitHubRestFallbackService {
       return { success: false, error: repoState.error };
     }
 
-    const { baseCommitSha, baseTreeSha } = await this.fetchBranchDetails(authHeaders, owner, repo, branch);
+    let { baseCommitSha, baseTreeSha } = await this.fetchBranchDetails(authHeaders, owner, repo, branch);
 
-    const treeState = await this.createGitTree(authHeaders, owner, repo, baseTreeSha, filesToCommit);
+    let treeState = await this.createGitTree(authHeaders, owner, repo, baseTreeSha, filesToCommit);
+
+    if (!treeState.treeSha && (treeState.status === 409 || (treeState.error && treeState.error.includes("Git Repository is empty")))) {
+      const initialized = await this.initializeEmptyRepository(authHeaders, owner, repo);
+      if (initialized) {
+        const recheck = await this.fetchBranchDetails(authHeaders, owner, repo, branch);
+        baseCommitSha = recheck.baseCommitSha;
+        baseTreeSha = recheck.baseTreeSha;
+        treeState = await this.createGitTree(authHeaders, owner, repo, baseTreeSha, filesToCommit);
+      }
+    }
+
     if (treeState.error || !treeState.treeSha) {
       return { success: false, error: treeState.error || "Tree creation failed" };
     }
