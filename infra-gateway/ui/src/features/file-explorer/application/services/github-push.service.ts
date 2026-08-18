@@ -1,3 +1,29 @@
+/**
+ * ALGORITHM: GITHUB CODE SYNC & DATABASE DUAL-PERSISTENCE ORCHESTRATOR
+ * ============================================================================
+ * 1. PRECONDITION RULE VALIDATION:
+ *    - Evaluates `GitHubPushRulesEngine` for token and repository input validity.
+ * 
+ * 2. PAT TOKEN MONGODB PERSISTENCE:
+ *    - Calls `GitHubCredentialsService.saveActiveToken()` to persist credentials in MongoDB `github_credentials`.
+ * 
+ * 3. AUTHENTICATION & OWNER PARSING:
+ *    - Verifies GitHub PAT via `/user` API and resolves repository owner (`owner/repo`).
+ * 
+ * 4. DATA-DRIVEN TREE FLATTENING:
+ *    - Calls `TreeFlatteningService.resolveTreeDataWithFallback()` to extract flat file additions.
+ * 
+ * 5. GITHUB GRAPHQL API v4 PIPELINE:
+ *    - Calls `GitHubGraphQLService.executePushPipeline()` executing `createCommitOnBranch` mutation.
+ * 
+ * 6. REST GIT DATA FALLBACK:
+ *    - Falls back to `GitHubRestFallbackService.executePushPipeline()` if GraphQL branch target requires initialization.
+ * 
+ * 7. PUSH HISTORY MONGODB LOGGING:
+ *    - Logs push commit record (SHA, branch, file count, timestamp) into MongoDB `github_push_history`.
+ * ============================================================================
+ */
+
 import { NextResponse } from "next/server";
 import { TreeFlatteningService } from "./tree-flattening.service";
 import { GitHubCredentialsService } from "./github-credentials.service";

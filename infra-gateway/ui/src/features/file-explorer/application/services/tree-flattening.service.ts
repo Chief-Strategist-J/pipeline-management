@@ -1,3 +1,20 @@
+/**
+ * ALGORITHM: TREE FLATTENING & RELATIVE PATH STRIPPING
+ * ============================================================================
+ * 1. RECURSIVE TRAVERSAL:
+ *    - Traverses nested TreeItem hierarchy (`type: "file"` vs `type: "folder"`).
+ *    - Accumulates paths as `parentPath/cleanNodeName`.
+ *    - Extract file content safely from `node.content` or fallback to `""`.
+ * 
+ * 2. AUTOMATIC ROOT PREFIX STRIPPING:
+ *    - Detects if all files share a common root container folder (e.g. `nextjs-extreme-scale/`).
+ *    - Strips the root container prefix so files sit cleanly at GitHub repo root (`package.json`, `src/index.ts`).
+ * 
+ * 3. FALLBACK CATALOG RESOLUTION:
+ *    - If workspace tree is empty, falls back to the default architecture template in PROJECT_TEMPLATES_CATALOG.
+ * ============================================================================
+ */
+
 import type { TreeItem } from "../../domain/entities/file-node.entity";
 import { PROJECT_TEMPLATES_CATALOG } from "../../domain/project-templates.catalog";
 

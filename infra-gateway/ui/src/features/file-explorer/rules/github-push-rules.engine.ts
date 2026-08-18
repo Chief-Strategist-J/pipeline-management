@@ -1,3 +1,16 @@
+/**
+ * ALGORITHM: GITHUB PUSH PRECONDITION & PARSING RULES ENGINE
+ * ============================================================================
+ * 1. REQUEST PRECONDITION EVALUATION:
+ *    - Validates PAT token presence and non-empty string.
+ *    - Validates Repository Name presence and non-empty string.
+ *    - Returns structured `RuleValidationResult` with explicit error codes (`UNAUTHORIZED`, `BAD_REQUEST`).
+ * 
+ * 2. OWNER / REPOSITORY NAME PARSING:
+ *    - Parses `owner/repository` user input vs default authenticated user login.
+ * ============================================================================
+ */
+
 export interface PushRequestContext {
   token?: string;
   repoName?: string;
