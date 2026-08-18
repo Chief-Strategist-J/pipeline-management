@@ -1,7 +1,18 @@
 version: '3.8'
 
 services:
-  # Mock Backend Services
+  mongodb:
+    image: mongodb/mongodb-community-server:latest
+    container_name: gateway-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - gateway_mongodb_data:/data/db
+
   user-service:
     image: hashicorp/http-echo:latest
     command: -text="[BACKEND] Hello from user-service"
@@ -20,7 +31,6 @@ services:
     ports:
       - "8083:5678"
 
-  # Nginx Gateway Instance
   nginx-gateway:
     image: nginxinc/nginx-unprivileged:stable-alpine
     ports:
@@ -34,7 +44,6 @@ services:
       - product-service
       - order-service
 
-  # Traefik Gateway Instance
   traefik-gateway:
     image: traefik:v3.0
     command:
@@ -50,3 +59,6 @@ services:
       - user-service
       - product-service
       - order-service
+
+volumes:
+  gateway_mongodb_data:

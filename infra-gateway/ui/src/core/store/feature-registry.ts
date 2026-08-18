@@ -4,6 +4,7 @@ import { compilerFeatureConfig } from "@/features/proxy-compiler";
 import { sandboxFeatureConfig } from "@/features/sandbox-generator";
 import { roadmapFeatureConfig } from "@/features/roadmap-matrix";
 import { dockerLabFeatureConfig } from "@/features/docker-lab";
+import { fileExplorerFeatureConfig } from "@/features/file-explorer";
 
 export interface FeatureModule {
   key: string;
@@ -17,4 +18,6 @@ export const featureRegistry: FeatureModule[] = [
   sandboxFeatureConfig,
   roadmapFeatureConfig,
   dockerLabFeatureConfig,
+  fileExplorerFeatureConfig,
 ];
+
