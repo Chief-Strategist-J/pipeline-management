@@ -7,6 +7,13 @@ export interface SaveTokenPayload {
   isPrivate?: boolean;
 }
 
+export interface ActiveTokenRecord {
+  token: string;
+  repoName: string;
+  branchName: string;
+  isPrivate: boolean;
+}
+
 export interface PushHistoryEntry {
   shortHash: string;
   fullHash: string;
@@ -19,6 +26,24 @@ export interface PushHistoryEntry {
 }
 
 export class GitHubCredentialsService {
+  public static async getActiveToken(): Promise<ActiveTokenRecord | null> {
+    try {
+      const { db } = await connectToDatabase();
+      const creds = await db.collection("github_credentials").findOne({ key: "active_token" });
+      if (creds && creds.token) {
+        return {
+          token: creds.token,
+          repoName: creds.repoName || "",
+          branchName: creds.branchName || "main",
+          isPrivate: !!creds.isPrivate,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   public static async saveActiveToken(payload: SaveTokenPayload): Promise<void> {
     try {
       const { db } = await connectToDatabase();

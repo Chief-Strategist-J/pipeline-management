@@ -1,25 +1,28 @@
 /**
  * ALGORITHM: GITHUB CODE SYNC & DATABASE DUAL-PERSISTENCE ORCHESTRATOR
  * ============================================================================
- * 1. PRECONDITION RULE VALIDATION:
+ * 1. AUTOMATIC MONGODB PAT TOKEN FALLBACK:
+ *    - If `body.token` or `body.repoName` are completely empty, resolves saved credentials from MongoDB `github_credentials`.
+ * 
+ * 2. PRECONDITION RULE VALIDATION:
  *    - Evaluates `GitHubPushRulesEngine` for token and repository input validity.
  * 
- * 2. PAT TOKEN MONGODB PERSISTENCE:
- *    - Calls `GitHubCredentialsService.saveActiveToken()` to persist credentials in MongoDB `github_credentials`.
+ * 3. PAT TOKEN MONGODB PERSISTENCE:
+ *    - Saves/updates PAT token record in MongoDB `github_credentials`.
  * 
- * 3. AUTHENTICATION & OWNER PARSING:
+ * 4. AUTHENTICATION & OWNER PARSING:
  *    - Verifies GitHub PAT via `/user` API and resolves repository owner (`owner/repo`).
  * 
- * 4. DATA-DRIVEN TREE FLATTENING:
+ * 5. DATA-DRIVEN TREE FLATTENING:
  *    - Calls `TreeFlatteningService.resolveTreeDataWithFallback()` to extract flat file additions.
  * 
- * 5. GITHUB GRAPHQL API v4 PIPELINE:
+ * 6. GITHUB GRAPHQL API v4 PIPELINE:
  *    - Calls `GitHubGraphQLService.executePushPipeline()` executing `createCommitOnBranch` mutation.
  * 
- * 6. REST GIT DATA FALLBACK:
+ * 7. REST GIT DATA FALLBACK:
  *    - Falls back to `GitHubRestFallbackService.executePushPipeline()` if GraphQL branch target requires initialization.
  * 
- * 7. PUSH HISTORY MONGODB LOGGING:
+ * 8. PUSH HISTORY MONGODB LOGGING:
  *    - Logs push commit record (SHA, branch, file count, timestamp) into MongoDB `github_push_history`.
  * ============================================================================
  */
@@ -33,8 +36,8 @@ import { GitHubRestFallbackService } from "./github-rest-fallback.service";
 import { GitHubErrorRegistry } from "./github-error.registry";
 
 export interface PushRequestDto {
-  token: string;
-  repoName: string;
+  token?: string;
+  repoName?: string;
   branchName?: string;
   commitMessage?: string;
   isPrivate?: boolean;
@@ -44,30 +47,47 @@ export interface PushRequestDto {
 
 export class GitHubPushService {
   public static async executePush(body: PushRequestDto): Promise<NextResponse> {
+    let activeToken = (body.token || "").trim();
+    let targetRepo = (body.repoName || "").trim();
+    let targetBranch = (body.branchName || "main").trim();
+    let isPrivate = !!body.isPrivate;
+
+    if (!activeToken && !targetRepo) {
+      const mongoRecord = await GitHubCredentialsService.getActiveToken();
+      if (mongoRecord) {
+        activeToken = mongoRecord.token || "";
+        targetRepo = mongoRecord.repoName || "";
+        if (!body.branchName) targetBranch = mongoRecord.branchName || "main";
+        if (body.isPrivate === undefined) isPrivate = mongoRecord.isPrivate;
+      }
+    } else if (!activeToken) {
+      const mongoRecord = await GitHubCredentialsService.getActiveToken();
+      if (mongoRecord?.token) {
+        activeToken = mongoRecord.token;
+      }
+    }
+
     const ruleResult = GitHubPushRulesEngine.validateRequest({
-      token: body.token,
-      repoName: body.repoName,
-      branchName: body.branchName,
+      token: activeToken,
+      repoName: targetRepo,
+      branchName: targetBranch,
     });
 
     if (!ruleResult.isValid) {
       return GitHubErrorRegistry.handle(ruleResult.errorCode!, ruleResult.errorMessage!);
     }
 
-    const cleanToken = body.token.trim();
-    const targetBranch = (body.branchName || "main").trim();
     const commitMsg = body.commitMessage || "feat: sync template code tree from OpenVSCode IDE";
-    const isPrivate = !!body.isPrivate;
 
     await GitHubCredentialsService.saveActiveToken({
-      token: cleanToken,
-      repoName: body.repoName.trim(),
+      token: activeToken,
+      repoName: targetRepo,
       branchName: targetBranch,
       isPrivate,
     });
 
     const authHeaders = {
-      Authorization: `bearer ${cleanToken}`,
+      Authorization: `bearer ${activeToken}`,
       Accept: "application/vnd.github.v3+json",
       "Content-Type": "application/json",
       "User-Agent": "Pipeline-Management-IDE",
@@ -82,7 +102,7 @@ export class GitHubPushService {
     const userData = await userRes.json();
     const authenticatedUser = userData.login;
 
-    const { owner, actualRepo } = GitHubPushRulesEngine.parseOwnerRepo(body.repoName, authenticatedUser);
+    const { owner, actualRepo } = GitHubPushRulesEngine.parseOwnerRepo(targetRepo, authenticatedUser);
     const filesToCommit = TreeFlatteningService.resolveTreeDataWithFallback(body.treeData || [], body.activeTemplateId);
 
     const gqlResult = await GitHubGraphQLService.executePushPipeline({
