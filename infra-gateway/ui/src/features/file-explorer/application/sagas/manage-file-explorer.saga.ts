@@ -1,5 +1,6 @@
-import { call, put, takeEvery } from "redux-saga/effects";
+import { call, put, select, takeEvery } from "redux-saga/effects";
 import { resolveServerRunnerRule } from "../../rules/server-runner.rules";
+import { selectTreeData } from "../../readModels/file-explorer.selectors";
 import {
   setServerRunning,
   appendTerminalLog,
@@ -17,6 +18,7 @@ import {
 import { FileExplorerRestAdapter } from "../../adapters/rest/file-explorer-rest.adapter";
 import { GitHubGraphQLAdapter } from "../../adapters/graphql/github-graphql.adapter";
 import type { GitHubPushResult } from "../../ports/github.port";
+import type { TreeItem } from "../../domain/entities/file-node.entity";
 
 export function createManageFileExplorerSaga(
   adapter: FileExplorerRestAdapter = new FileExplorerRestAdapter(),
@@ -85,26 +87,29 @@ export function createManageFileExplorerSaga(
   }
 
   function* handlePushToGitHub(action: ReturnType<typeof pushToGitHubAction>) {
-    const { token, repoName, commitMessage, isPrivate } = action.payload;
+    const { token, repoName, branchName = "main", commitMessage, isPrivate } = action.payload;
+    const activeTreeData: TreeItem[] = yield select(selectTreeData);
     const now = new Date().toISOString().substring(11, 19);
 
     yield put(setIsPushingGitHub(true));
     yield put(setGithubPushResult(null));
-    yield put(appendTerminalLog(`[${now}] 🐙 [GITHUB GRAPHQL] Executing createRepository & git push for '${repoName}'...`));
+    yield put(appendTerminalLog(`[${now}] 🐙 [GITHUB GRAPHQL/REST] Synchronizing tree and pushing commit to '${repoName}' (${branchName})...`));
 
     try {
       const result: GitHubPushResult = yield call([githubAdapter, githubAdapter.pushToGitHub], {
         token,
         repoName,
+        branchName,
         commitMessage,
         isPrivate,
+        treeData: action.payload.treeData || activeTreeData,
       });
 
       yield put(setIsPushingGitHub(false));
       yield put(setGithubPushResult(result));
 
       if (result.success) {
-        yield put(appendTerminalLog(`[${now}] [SUCCESS] Created repo & pushed code to ${result.repoUrl || repoName}`));
+        yield put(appendTerminalLog(`[${now}] [SUCCESS] Pushed code tree to ${result.repoUrl || repoName} (branch: ${branchName})`));
       } else {
         yield put(appendTerminalLog(`[${now}] [ERROR] GitHub Push: ${result.message}`));
       }

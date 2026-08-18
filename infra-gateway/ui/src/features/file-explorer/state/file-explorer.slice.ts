@@ -342,7 +342,7 @@ export const fileExplorerSlice = createSlice({
     stopServerAction(_state, _action: PayloadAction<{ templateId: string }>) {},
     sendTestRequestAction(_state, _action: PayloadAction<{ templateId: string }>) {},
     saveFileAction(_state, _action: PayloadAction<{ fileId: string; name: string; path: string; content: string }>) {},
-    pushToGitHubAction(_state, _action: PayloadAction<{ token: string; repoName: string; commitMessage: string; isPrivate?: boolean }>) {},
+    pushToGitHubAction(_state, _action: PayloadAction<{ token: string; repoName: string; branchName?: string; commitMessage: string; isPrivate?: boolean; treeData?: TreeItem[] }>) {},
   },
 });
 

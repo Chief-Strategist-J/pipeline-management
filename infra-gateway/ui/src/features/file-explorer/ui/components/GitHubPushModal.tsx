@@ -23,7 +23,8 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
 
   const [token, setToken] = useState("");
   const [repoName, setRepoName] = useState("");
-  const [commitMessage, setCommitMessage] = useState("feat: initial commit from pipeline management IDE");
+  const [branchName, setBranchName] = useState("main");
+  const [commitMessage, setCommitMessage] = useState("feat: sync template code tree from OpenVSCode IDE");
   const [isPrivate, setIsPrivate] = useState(false);
 
   if (!isOpen) return null;
@@ -36,6 +37,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
       pushToGitHubAction({
         token: token.trim(),
         repoName: repoName.trim(),
+        branchName: branchName.trim() || "main",
         commitMessage: commitMessage.trim(),
         isPrivate,
       })
@@ -48,7 +50,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
         <div className="h-12 bg-[#2d2d2d] px-4 border-b border-[#3c3c3c] flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-100 font-semibold text-sm">
             <GitHubIcon className="h-5 w-5 text-purple-400" />
-            <span>Push Code to GitHub Repository</span>
+            <span>Push Code & Sync to GitHub Repository</span>
           </div>
           <button
             type="button"
@@ -66,7 +68,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                 <span>GitHub Personal Access Token (PAT)</span>
               </span>
-              <span className="text-[10px] text-purple-400">GraphQL API v4</span>
+              <span className="text-[10px] text-purple-400">GraphQL / REST Git API</span>
             </label>
             <input
               type="password"
@@ -78,18 +80,34 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-mono text-slate-300 mb-1.5">
-              Repository Name
-            </label>
-            <input
-              type="text"
-              value={repoName}
-              onChange={(e) => setRepoName(e.target.value)}
-              placeholder="my-awesome-pipeline-service"
-              required
-              className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-purple-500 transition-colors"
-            />
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2">
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">
+                Repository Name
+              </label>
+              <input
+                type="text"
+                value={repoName}
+                onChange={(e) => setRepoName(e.target.value)}
+                placeholder="my-awesome-pipeline"
+                required
+                className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-purple-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5 flex items-center gap-1">
+                <GitBranch className="h-3 w-3 text-blue-400" />
+                <span>Branch</span>
+              </label>
+              <input
+                type="text"
+                value={branchName}
+                onChange={(e) => setBranchName(e.target.value)}
+                placeholder="main"
+                required
+                className="w-full bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-purple-500 transition-colors"
+              />
+            </div>
           </div>
 
           <div>
@@ -106,17 +124,20 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
             />
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="isPrivate"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-              className="rounded bg-[#1e1e1e] border-[#3c3c3c] text-purple-600 focus:ring-0 cursor-pointer"
-            />
-            <label htmlFor="isPrivate" className="text-xs font-mono text-slate-300 select-none cursor-pointer">
-              Create as Private Repository
-            </label>
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 bg-[#1e1e1e] p-2.5 rounded border border-[#3c3c3c]">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isPrivate"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+                className="rounded bg-[#141414] border-[#3c3c3c] text-purple-600 focus:ring-0 cursor-pointer"
+              />
+              <label htmlFor="isPrivate" className="select-none cursor-pointer text-slate-200">
+                Create Private Repo (if new)
+              </label>
+            </div>
+            <span className="text-purple-400">Auto-syncs existing repo/branch</span>
           </div>
 
           {pushResult && (
@@ -133,9 +154,9 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
                 ) : (
                   <AlertCircle className="h-4 w-4 text-rose-400" />
                 )}
-                <span>{pushResult.success ? "GitHub Push Success!" : "Push Failed"}</span>
+                <span>{pushResult.success ? "GitHub Code Sync Success!" : "Push Failed"}</span>
               </div>
-              <p>{pushResult.message}</p>
+              <p className="whitespace-pre-wrap">{pushResult.message}</p>
               {pushResult.repoUrl && (
                 <a
                   href={pushResult.repoUrl}
@@ -143,7 +164,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
                   rel="noreferrer"
                   className="mt-2 inline-flex items-center gap-1 text-purple-400 hover:underline font-bold"
                 >
-                  <span>Open Remote Repository</span>
+                  <span>Open Remote Repository ({branchName})</span>
                   <ExternalLink className="h-3 w-3" />
                 </a>
               )}
@@ -166,12 +187,12 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
               {isPushing ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Pushing to GitHub...</span>
+                  <span>Pushing & Syncing...</span>
                 </>
               ) : (
                 <>
                   <GitHubIcon className="h-3.5 w-3.5" />
-                  <span>Create Repo & Push</span>
+                  <span>Sync Code to GitHub</span>
                 </>
               )}
             </button>
