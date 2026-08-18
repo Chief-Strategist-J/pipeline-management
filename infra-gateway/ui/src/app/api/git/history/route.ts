@@ -11,16 +11,21 @@ function formatRelativeTime(date: Date): string {
   return `${Math.floor(diffSec / 86400)}d ago`;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const repoName = searchParams.get("repoName");
+    const branchName = searchParams.get("branchName");
+
     const { db } = await connectToDatabase();
+
+    const query: Record<string, any> = {};
+    if (repoName) query.repoName = repoName;
+    if (branchName) query.branchName = branchName;
 
     const pushLogs = await db
       .collection("github_push_history")
-      .find({
-        author: { $nin: ["testuser", "chief-strategist"] },
-        shortHash: { $nin: ["sha_e2e", "sha_new"] },
-      })
+      .find(query)
       .sort({ pushedAt: -1 })
       .limit(50)
       .toArray();
@@ -28,7 +33,7 @@ export async function GET() {
     if (!pushLogs || pushLogs.length === 0) {
       return NextResponse.json({
         success: true,
-        currentBranch: "main",
+        currentBranch: branchName || "main",
         totalCommits: 0,
         commits: [],
         changedFiles: [],
@@ -39,10 +44,10 @@ export async function GET() {
     const latestBranch = pushLogs[0]?.branchName || "main";
 
     const commits = pushLogs.map((log: any, idx: number) => ({
-      shortHash: log.shortHash || "0000000",
+      shortHash: log.shortHash || "",
       fullHash: log.fullHash || "",
-      subject: log.subject || "Pushed code tree",
-      author: log.author || "User",
+      subject: log.subject || "",
+      author: log.author || "",
       relativeDate: log.pushedAt ? formatRelativeTime(new Date(log.pushedAt)) : "Just now",
       refs: idx === 0 ? `HEAD -> ${log.branchName || "main"}, origin/${log.branchName || "main"}` : "",
       repoUrl: log.repoUrl,

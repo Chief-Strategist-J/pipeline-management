@@ -26,6 +26,10 @@ export interface PushHistoryEntry {
 }
 
 export class GitHubCredentialsService {
+  private static getPushHistoryCollectionName(): string {
+    return process.env.NODE_ENV === "test" ? "github_push_history_test" : "github_push_history";
+  }
+
   public static async getActiveToken(): Promise<ActiveTokenRecord | null> {
     try {
       const fetchTask = (async () => {
@@ -72,9 +76,22 @@ export class GitHubCredentialsService {
   public static async recordPushCommit(entry: PushHistoryEntry): Promise<void> {
     try {
       const { db } = await connectToDatabase();
-      await db.collection("github_push_history").insertOne({
+      const colName = this.getPushHistoryCollectionName();
+      await db.collection(colName).insertOne({
         ...entry,
         pushedAt: new Date(),
+      });
+    } catch {}
+  }
+
+  public static async purgeMockTestCommits(): Promise<void> {
+    try {
+      const { db } = await connectToDatabase();
+      await db.collection("github_push_history").deleteMany({
+        $or: [
+          { author: { $in: ["testuser", "chief-strategist"] } },
+          { shortHash: { $in: ["sha_e2e", "sha_new"] } },
+        ],
       });
     } catch {}
   }
