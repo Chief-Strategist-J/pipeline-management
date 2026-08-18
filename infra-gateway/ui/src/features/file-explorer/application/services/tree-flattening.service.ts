@@ -18,16 +18,17 @@ export class TreeFlatteningService {
         const cleanName = (node.name || "").replace(/\\/g, "/");
         const pathSegment = currentPath ? `${currentPath}/${cleanName}` : cleanName;
 
-        const hasChildren = "children" in node && Array.isArray(node.children) && node.children.length > 0;
+        const hasChildren = "children" in node && Array.isArray((node as any).children) && (node as any).children.length > 0;
         const isFolder = node.type === "folder" || hasChildren;
 
         if (isFolder && hasChildren) {
           recurse((node as any).children, pathSegment);
         } else if (node.type === "file" || !hasChildren) {
           const filePath = node.path ? node.path.replace(/\\/g, "/") : pathSegment;
+          const nodeContent = (node as any).content;
           rawFiles.push({
             path: filePath,
-            content: typeof node.content === "string" ? node.content : "",
+            content: typeof nodeContent === "string" ? nodeContent : "",
           });
         }
       }
