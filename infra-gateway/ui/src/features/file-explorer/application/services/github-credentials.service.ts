@@ -28,17 +28,22 @@ export interface PushHistoryEntry {
 export class GitHubCredentialsService {
   public static async getActiveToken(): Promise<ActiveTokenRecord | null> {
     try {
-      const { db } = await connectToDatabase();
-      const creds = await db.collection("github_credentials").findOne({ key: "active_token" });
-      if (creds && creds.token) {
-        return {
-          token: creds.token,
-          repoName: creds.repoName || "",
-          branchName: creds.branchName || "main",
-          isPrivate: !!creds.isPrivate,
-        };
-      }
-      return null;
+      const fetchTask = (async () => {
+        const { db } = await connectToDatabase();
+        const creds = await db.collection("github_credentials").findOne({ key: "active_token" });
+        if (creds && creds.token) {
+          return {
+            token: creds.token,
+            repoName: creds.repoName || "",
+            branchName: creds.branchName || "main",
+            isPrivate: !!creds.isPrivate,
+          };
+        }
+        return null;
+      })();
+
+      const timeoutTask = new Promise<null>((resolve) => setTimeout(() => resolve(null), 300));
+      return await Promise.race([fetchTask, timeoutTask]);
     } catch {
       return null;
     }
