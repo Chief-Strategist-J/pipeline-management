@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/core/database/mongodb";
+import { PROJECT_TEMPLATES_CATALOG } from "@/features/file-explorer/domain/project-templates.catalog";
 
 interface TreeItemNode {
   id: string;
@@ -14,30 +15,44 @@ function flattenTreeItems(nodes: TreeItemNode[] = []): Array<{ path: string; con
   let rawFiles: Array<{ path: string; content: string }> = [];
 
   function recurse(items: TreeItemNode[], currentPath = "") {
+    if (!Array.isArray(items)) return;
+
     for (const node of items) {
-      const cleanName = node.name.replace(/\\/g, "/");
+      if (!node) continue;
+      const cleanName = (node.name || "").replace(/\\/g, "/");
       const pathSegment = currentPath ? `${currentPath}/${cleanName}` : cleanName;
 
-      if (node.type === "file") {
+      const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+      const isFolder = node.type === "folder" || hasChildren;
+
+      if (isFolder && hasChildren) {
+        recurse(node.children!, pathSegment);
+      } else if (node.type === "file" || !hasChildren) {
+        const filePath = node.path ? node.path.replace(/\\/g, "/") : pathSegment;
         rawFiles.push({
-          path: pathSegment,
-          content: node.content !== undefined ? node.content : "",
+          path: filePath,
+          content: typeof node.content === "string" ? node.content : "",
         });
-      } else if (node.type === "folder" && Array.isArray(node.children)) {
-        recurse(node.children, pathSegment);
       }
     }
   }
 
   recurse(nodes);
 
-  if (nodes.length === 1 && nodes[0].type === "folder") {
-    const rootName = nodes[0].name.replace(/\\/g, "/");
-    const prefix = `${rootName}/`;
-    return rawFiles.map((f) => ({
-      path: f.path.startsWith(prefix) ? f.path.substring(prefix.length) : f.path,
-      content: f.content,
-    }));
+  if (rawFiles.length === 0) return [];
+
+  const firstPath = rawFiles[0].path;
+  const firstSlashIdx = firstPath.indexOf("/");
+
+  if (firstSlashIdx !== -1) {
+    const candidatePrefix = firstPath.substring(0, firstSlashIdx + 1);
+    const allStartWithPrefix = rawFiles.every((f) => f.path.startsWith(candidatePrefix));
+    if (allStartWithPrefix) {
+      return rawFiles.map((f) => ({
+        path: f.path.substring(candidatePrefix.length),
+        content: f.content,
+      }));
+    }
   }
 
   return rawFiles;
@@ -108,11 +123,153 @@ export async function POST(req: Request) {
       actualRepo = parts[1];
     }
 
+    let filesToCommit = flattenTreeItems(treeData);
+    if (filesToCommit.length === 0 && PROJECT_TEMPLATES_CATALOG.length > 0) {
+      filesToCommit = flattenTreeItems(PROJECT_TEMPLATES_CATALOG[0].tree);
+    }
+
+    const graphqlEndpoint = "https://api.github.com/graphql";
+
+    const getRepoQuery = `
+      query GetRepoInfo($owner: String!, $name: String!, $branch: String!) {
+        repository(owner: $owner, name: $name) {
+          id
+          url
+          nameWithOwner
+          ref(qualifiedName: $branch) {
+            target {
+              oid
+            }
+          }
+          defaultBranchRef {
+            name
+            target {
+              oid
+            }
+          }
+        }
+      }
+    `;
+
+    let graphqlRes = await fetch(graphqlEndpoint, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        query: getRepoQuery,
+        variables: { owner, name: actualRepo, branch: targetBranch },
+      }),
+    });
+
+    let graphqlData = await graphqlRes.json();
+    let repoObj = graphqlData?.data?.repository;
+    let repoCreated = false;
+
+    if (!repoObj) {
+      const createRepoMutation = `
+        mutation CreateRepo($name: String!, $visibility: RepositoryVisibility!) {
+          createRepository(input: { name: $name, visibility: $visibility }) {
+            repository {
+              id
+              url
+              nameWithOwner
+            }
+          }
+        }
+      `;
+
+      const visibility = isPrivate ? "PRIVATE" : "PUBLIC";
+      const createRes = await fetch(graphqlEndpoint, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({
+          query: createRepoMutation,
+          variables: { name: actualRepo, visibility },
+        }),
+      });
+
+      const createGqlData = await createRes.json();
+      if (createGqlData?.data?.createRepository?.repository) {
+        repoObj = createGqlData.data.createRepository.repository;
+        repoCreated = true;
+      }
+    }
+
+    let headOid: string | null = repoObj?.ref?.target?.oid || repoObj?.defaultBranchRef?.target?.oid || null;
+
+    if (headOid) {
+      const fileAdditions = filesToCommit.map((f) => ({
+        path: f.path.replace(/^\/+/, ""),
+        contents: Buffer.from(f.content || "", "utf-8").toString("base64"),
+      }));
+
+      const createCommitMutation = `
+        mutation CreateCommit($input: CreateCommitOnBranchInput!) {
+          createCommitOnBranch(input: $input) {
+            commit {
+              url
+              oid
+            }
+          }
+        }
+      `;
+
+      const commitVariables = {
+        input: {
+          branch: {
+            repositoryNameWithOwner: `${owner}/${actualRepo}`,
+            branchName: targetBranch,
+          },
+          message: {
+            headline: commitMessage,
+          },
+          fileChanges: {
+            additions: fileAdditions,
+          },
+          expectedHeadOid: headOid,
+        },
+      };
+
+      const commitGqlRes = await fetch(graphqlEndpoint, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({
+          query: createCommitMutation,
+          variables: commitVariables,
+        }),
+      });
+
+      const commitGqlData = await commitGqlRes.json();
+      if (commitGqlData?.data?.createCommitOnBranch?.commit) {
+        const commitObj = commitGqlData.data.createCommitOnBranch.commit;
+        const shortHash = commitObj.oid.substring(0, 7);
+
+        try {
+          const { db } = await connectToDatabase();
+          await db.collection("github_push_history").insertOne({
+            shortHash,
+            fullHash: commitObj.oid,
+            subject: commitMessage,
+            author: authenticatedUser,
+            repoUrl: `${repoObj.url}/tree/${targetBranch}`,
+            repoName: `${owner}/${actualRepo}`,
+            branchName: targetBranch,
+            fileCount: filesToCommit.length,
+            pushedAt: new Date(),
+          });
+        } catch {}
+
+        return NextResponse.json({
+          success: true,
+          repoUrl: `${repoObj.url}/tree/${targetBranch}`,
+          message: `GitHub GraphQL API v4: Successfully committed and pushed all ${filesToCommit.length} workspace files to repository '${actualRepo}' (Commit SHA: ${shortHash}).`,
+        });
+      }
+    }
+
     const repoCheckRes = await fetch(`https://api.github.com/repos/${owner}/${actualRepo}`, {
       headers: authHeaders,
     });
 
-    let repoCreated = false;
     let repoUrl = `https://github.com/${owner}/${actualRepo}`;
 
     if (repoCheckRes.status === 404) {
@@ -142,16 +299,6 @@ export async function POST(req: Request) {
     } else if (repoCheckRes.ok) {
       const existingRepo = await repoCheckRes.json();
       repoUrl = existingRepo.html_url || repoUrl;
-    }
-
-    let filesToCommit = flattenTreeItems(treeData);
-    if (filesToCommit.length === 0) {
-      filesToCommit = [
-        {
-          path: "README.md",
-          content: `# ${actualRepo}\n\nGenerated by OpenVSCode Pipeline Management IDE.`,
-        },
-      ];
     }
 
     const branchRes = await fetch(
