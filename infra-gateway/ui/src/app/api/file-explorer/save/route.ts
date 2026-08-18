@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server";
+import { connectToDatabase } from "@/core/database/mongodb";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { fileId, name, path, content } = body;
 
-    const mongoUri = process.env.MONGODB_URI || "mongodb://root:example@localhost:27017/pipeline_management?authSource=admin";
+    const { db } = await connectToDatabase();
+
+    await db.collection("saved_files").updateOne(
+      { fileId },
+      {
+        $set: {
+          fileId,
+          name,
+          path,
+          content,
+          savedAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
 
     return NextResponse.json({
       success: true,
@@ -14,7 +29,6 @@ export async function POST(req: Request) {
       path,
       savedAt: new Date().toISOString(),
       database: "MongoDB / pipeline_management",
-      mongoUri,
       message: `File [${name}] successfully saved to MongoDB database!`,
     });
   } catch (err: any) {

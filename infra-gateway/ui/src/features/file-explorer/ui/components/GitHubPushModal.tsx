@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { X, GitBranch, Loader2, ExternalLink, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
+import { X, GitBranch, Loader2, ExternalLink, ShieldCheck, CheckCircle2, AlertCircle, Database } from "lucide-react";
 import { pushToGitHubAction } from "../../state/file-explorer.slice";
 import { selectIsPushingGitHub, selectGithubPushResult } from "../../readModels/file-explorer.selectors";
 
@@ -26,6 +26,24 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
   const [branchName, setBranchName] = useState("main");
   const [commitMessage, setCommitMessage] = useState("feat: sync template code tree from OpenVSCode IDE");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [loadedFromMongo, setLoadedFromMongo] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch("/api/github/token")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.token) {
+            setToken(data.token);
+            if (data.repoName) setRepoName(data.repoName);
+            if (data.branchName) setBranchName(data.branchName);
+            setIsPrivate(!!data.isPrivate);
+            setLoadedFromMongo(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -62,13 +80,20 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {loadedFromMongo && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/40 border border-emerald-500/30 rounded text-[11px] font-mono text-emerald-300">
+              <Database className="h-3.5 w-3.5" />
+              <span>Loaded saved PAT Token from MongoDB database</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-mono text-slate-300 mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                 <span>GitHub Personal Access Token (PAT)</span>
               </span>
-              <span className="text-[10px] text-purple-400">GraphQL / REST Git API</span>
+              <span className="text-[10px] text-purple-400">Stored in MongoDB</span>
             </label>
             <input
               type="password"
@@ -137,7 +162,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
                 Create Private Repo (if new)
               </label>
             </div>
-            <span className="text-purple-400">Auto-syncs existing repo/branch</span>
+            <span className="text-purple-400">Saves token to MongoDB</span>
           </div>
 
           {pushResult && (
@@ -187,7 +212,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
               {isPushing ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Pushing & Syncing...</span>
+                  <span>Pushing & Saving Token...</span>
                 </>
               ) : (
                 <>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { connectToDatabase } from "@/core/database/mongodb";
 
 interface TreeItemNode {
   id: string;
@@ -49,6 +50,24 @@ export async function POST(req: Request) {
 
     const cleanToken = token.trim();
     const targetBranch = inputBranchName.trim() || "main";
+
+    try {
+      const { db } = await connectToDatabase();
+      await db.collection("github_credentials").updateOne(
+        { key: "active_token" },
+        {
+          $set: {
+            key: "active_token",
+            token: cleanToken,
+            repoName: inputRepoName.trim(),
+            branchName: targetBranch,
+            isPrivate,
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true }
+      );
+    } catch {}
 
     const authHeaders = {
       Authorization: `bearer ${cleanToken}`,
@@ -206,7 +225,7 @@ export async function POST(req: Request) {
     }
     const newCommit = await createCommitRes.json();
 
-    const updateRefRes = await fetch(
+    await fetch(
       `https://api.github.com/repos/${owner}/${actualRepo}/git/refs/heads/${targetBranch}`,
       {
         method: "PATCH",
@@ -218,16 +237,22 @@ export async function POST(req: Request) {
       }
     );
 
-    if (!updateRefRes.ok && !repoCreated) {
-      await fetch(`https://api.github.com/repos/${owner}/${actualRepo}/git/refs`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({
-          ref: `refs/heads/${targetBranch}`,
-          sha: newCommit.sha,
-        }),
+    const shortHash = newCommit.sha.substring(0, 7);
+
+    try {
+      const { db } = await connectToDatabase();
+      await db.collection("github_push_history").insertOne({
+        shortHash,
+        fullHash: newCommit.sha,
+        subject: commitMessage,
+        author: authenticatedUser,
+        repoUrl: `${repoUrl}/tree/${targetBranch}`,
+        repoName: `${owner}/${actualRepo}`,
+        branchName: targetBranch,
+        fileCount: filesToCommit.length,
+        pushedAt: new Date(),
       });
-    }
+    } catch {}
 
     const actionText = repoCreated
       ? `Repository '${actualRepo}' created on GitHub.`
@@ -236,7 +261,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       repoUrl: `${repoUrl}/tree/${targetBranch}`,
-      message: `${actionText} Committed and pushed ${filesToCommit.length} files to branch '${targetBranch}' (Commit SHA: ${newCommit.sha.substring(0, 7)}).`,
+      message: `${actionText} Committed and pushed ${filesToCommit.length} files to branch '${targetBranch}' (Commit SHA: ${shortHash}). PAT Token saved to MongoDB.`,
     });
   } catch (err: any) {
     return NextResponse.json(

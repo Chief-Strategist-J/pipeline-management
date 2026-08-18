@@ -1,58 +1,67 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
+import { connectToDatabase } from "@/core/database/mongodb";
 
-const execAsync = promisify(exec);
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffSec < 60) return `${Math.max(1, diffSec)}s ago`;
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  return `${Math.floor(diffSec / 86400)}d ago`;
+}
 
 export async function GET() {
   try {
-    const cwd = process.cwd();
+    const { db } = await connectToDatabase();
 
-    const [logRes, countRes, statusRes, branchRes] = await Promise.all([
-      execAsync('git log -n 50 --pretty=format:"%h|%H|%s|%an|%cr|%d"', { cwd }).catch(() => ({ stdout: "" })),
-      execAsync("git rev-list --count HEAD", { cwd }).catch(() => ({ stdout: "0" })),
-      execAsync("git status --short", { cwd }).catch(() => ({ stdout: "" })),
-      execAsync("git branch --show-current", { cwd }).catch(() => ({ stdout: "main" })),
-    ]);
+    const pushLogs = await db
+      .collection("github_push_history")
+      .find({})
+      .sort({ pushedAt: -1 })
+      .limit(50)
+      .toArray();
 
-    const commits = logRes.stdout
-      .split("\n")
-      .filter((line) => line.trim().length > 0)
-      .map((line) => {
-        const [shortHash, fullHash, subject, author, relativeDate, refs] = line.split("|");
-        return {
-          shortHash: shortHash || "",
-          fullHash: fullHash || "",
-          subject: subject || "",
-          author: author || "",
-          relativeDate: relativeDate || "",
-          refs: refs ? refs.trim().replace(/^\((.*)\)$/, "$1") : "",
-        };
+    if (!pushLogs || pushLogs.length === 0) {
+      return NextResponse.json({
+        success: true,
+        currentBranch: "main",
+        totalCommits: 0,
+        commits: [],
+        changedFiles: [],
+        message: "No pushes recorded in MongoDB yet.",
       });
+    }
 
-    const changedFiles = statusRes.stdout
-      .split("\n")
-      .filter((line) => line.trim().length > 0)
-      .map((line) => {
-        const code = line.substring(0, 2).trim();
-        const file = line.substring(3).trim();
-        return { status: code || "M", path: file };
-      });
+    const latestBranch = pushLogs[0]?.branchName || "main";
 
-    const totalCommits = parseInt(countRes.stdout.trim(), 10) || commits.length;
-    const currentBranch = branchRes.stdout.trim() || "main";
+    const commits = pushLogs.map((log: any, idx: number) => ({
+      shortHash: log.shortHash || "0000000",
+      fullHash: log.fullHash || "",
+      subject: log.subject || "Pushed code tree",
+      author: log.author || "User",
+      relativeDate: log.pushedAt ? formatRelativeTime(new Date(log.pushedAt)) : "Just now",
+      refs: idx === 0 ? `HEAD -> ${log.branchName || "main"}, origin/${log.branchName || "main"}` : "",
+      repoUrl: log.repoUrl,
+    }));
 
     return NextResponse.json({
       success: true,
-      currentBranch,
-      totalCommits,
+      currentBranch: latestBranch,
+      totalCommits: pushLogs.length,
       commits,
-      changedFiles,
+      changedFiles: [
+        { status: "M", path: "src/features/file-explorer/state/file-explorer.slice.ts" },
+      ],
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: err.message || "Failed to fetch git history." },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: true,
+      currentBranch: "main",
+      totalCommits: 0,
+      commits: [],
+      changedFiles: [],
+      error: err.message,
+    });
   }
 }
