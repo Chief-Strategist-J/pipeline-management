@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import {
   MoreHorizontal,
   ChevronDown,
@@ -7,12 +8,12 @@ import {
   Sparkles,
   RefreshCw,
   GitBranch,
-  Folder,
   FileCode,
   Check,
   ExternalLink,
   Info,
 } from "lucide-react";
+import { selectOpenTabs } from "../../readModels/file-explorer.selectors";
 
 interface GitCommitItem {
   shortHash: string;
@@ -30,11 +31,13 @@ interface SourceControlPanelProps {
 }
 
 export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ onSync, isSyncing }) => {
+  const openTabs = useSelector(selectOpenTabs);
+
   const [isChangesOpen, setIsChangesOpen] = useState(true);
   const [isHistoryOpen, setIsHistoryOpen] = useState(true);
   const [isGitChangesOpen, setIsGitChangesOpen] = useState(true);
 
-  const [commitMsg, setCommitMsg] = useState("-");
+  const [commitMsg, setCommitMsg] = useState("");
   const [commits, setCommits] = useState<GitCommitItem[]>([]);
   const [totalCommits, setTotalCommits] = useState<number>(0);
   const [currentBranch, setCurrentBranch] = useState<string>("main");
@@ -101,7 +104,7 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ onSync, 
           >
             <div className="flex items-center gap-1.5">
               {isChangesOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-              <span>Changes</span>
+              <span>Commit & Push</span>
             </div>
           </div>
 
@@ -144,7 +147,7 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ onSync, 
           >
             <div className="flex items-center gap-1.5 truncate">
               {isHistoryOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
-              <span className="truncate">Git: Branch & Pushes ({currentBranch})</span>
+              <span className="truncate">Git Pushed Commits ({currentBranch})</span>
               <span className="text-[10px] text-slate-400 font-normal shrink-0">({totalCommits} commits)</span>
             </div>
 
@@ -215,31 +218,30 @@ export const SourceControlPanel: React.FC<SourceControlPanelProps> = ({ onSync, 
           >
             <div className="flex items-center gap-1.5">
               {isGitChangesOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-              <span>Folder Structure Changes</span>
+              <span>Active Open Files ({openTabs.length})</span>
             </div>
           </div>
 
           {isGitChangesOpen && (
             <div className="p-2 bg-[#181818] font-mono text-[11px] space-y-1">
-              <div className="flex items-center gap-1.5 text-slate-300 px-2 py-0.5">
-                <Folder className="h-3.5 w-3.5 text-blue-400" />
-                <span>workspace-root</span>
-              </div>
-              <div className="pl-4 space-y-1">
-                <div className="flex items-center gap-1.5 text-slate-300 px-2 py-0.5">
-                  <Folder className="h-3.5 w-3.5 text-blue-400" />
-                  <span>src</span>
+              {openTabs.length === 0 ? (
+                <div className="p-2 text-slate-500 italic text-xs font-sans">
+                  No active open files in workspace.
                 </div>
-                <div className="pl-4 space-y-1">
-                  <div className="flex items-center justify-between text-amber-400 px-2 py-0.5 hover:bg-[#2a2d2e] rounded">
+              ) : (
+                openTabs.map((tab) => (
+                  <div
+                    key={tab.id}
+                    className="flex items-center justify-between text-amber-400 px-2 py-1 hover:bg-[#2a2d2e] rounded cursor-pointer"
+                  >
                     <div className="flex items-center gap-1.5 truncate">
-                      <FileCode className="h-3.5 w-3.5 text-amber-400" />
-                      <span className="truncate">file-explorer.slice.ts</span>
+                      <FileCode className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                      <span className="truncate text-slate-200 font-medium">{tab.name}</span>
                     </div>
-                    <span className="text-[10px] font-bold text-amber-400">M</span>
+                    <span className="text-[10px] font-bold text-amber-400 shrink-0 ml-2">MODIFIED</span>
                   </div>
-                </div>
-              </div>
+                ))
+              )}
             </div>
           )}
         </div>

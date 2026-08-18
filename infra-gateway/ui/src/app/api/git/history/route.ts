@@ -50,9 +50,7 @@ export async function GET() {
       currentBranch: latestBranch,
       totalCommits: pushLogs.length,
       commits,
-      changedFiles: [
-        { status: "M", path: "src/features/file-explorer/state/file-explorer.slice.ts" },
-      ],
+      changedFiles: [],
     });
   } catch (err: any) {
     return NextResponse.json({
