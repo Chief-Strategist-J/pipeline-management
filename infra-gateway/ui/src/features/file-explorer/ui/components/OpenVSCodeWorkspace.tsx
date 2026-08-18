@@ -39,6 +39,8 @@ import { CreateItemModal } from "./CreateItemModal";
 import { ServerTerminalDrawer } from "./ServerTerminalDrawer";
 import { GitHubPushModal, GitHubIcon } from "./GitHubPushModal";
 import { TemplateLauncherScreen } from "./TemplateLauncherScreen";
+import { VSCodeActivityBar } from "./VSCodeActivityBar";
+import { SourceControlPanel } from "./SourceControlPanel";
 import { Play, Square, Send, LayoutGrid, ArrowLeft } from "lucide-react";
 
 export const OpenVSCodeWorkspace: React.FC = () => {
@@ -54,6 +56,7 @@ export const OpenVSCodeWorkspace: React.FC = () => {
   const searchQuery = useSelector(selectSearchQuery);
   const isServerRunning = useSelector(selectIsServerRunning);
 
+  const [activeSidebarView, setActiveSidebarView] = useState<"explorer" | "sourceControl">("explorer");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
 
@@ -162,19 +165,31 @@ export const OpenVSCodeWorkspace: React.FC = () => {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <FileExplorerSidebar
-          treeData={treeData}
-          selectedNodeId={selectedNodeId}
-          expandedNodeIds={expandedNodeIds}
-          searchQuery={searchQuery}
-          onSelectNode={(id) => dispatch(selectNode(id))}
-          onToggleExpand={(id) => dispatch(toggleExpandNode(id))}
-          onExpandAll={() => dispatch(expandAll())}
-          onCollapseAll={() => dispatch(collapseAll())}
-          onCreateNode={(payload) => dispatch(createNode(payload))}
-          onDeleteNode={(id) => dispatch(deleteNode(id))}
-          onSearchChange={(q) => dispatch(setSearchQuery(q))}
+        <VSCodeActivityBar
+          activeView={activeSidebarView}
+          onSelectView={setActiveSidebarView}
+          onOpenGrid={() => dispatch(resetLauncher())}
         />
+
+        {activeSidebarView === "explorer" ? (
+          <FileExplorerSidebar
+            treeData={treeData}
+            selectedNodeId={selectedNodeId}
+            expandedNodeIds={expandedNodeIds}
+            searchQuery={searchQuery}
+            onSelectNode={(id) => dispatch(selectNode(id))}
+            onToggleExpand={(id) => dispatch(toggleExpandNode(id))}
+            onExpandAll={() => dispatch(expandAll())}
+            onCollapseAll={() => dispatch(collapseAll())}
+            onCreateNode={(payload) => dispatch(createNode(payload))}
+            onDeleteNode={(id) => dispatch(deleteNode(id))}
+            onSearchChange={(q) => dispatch(setSearchQuery(q))}
+          />
+        ) : (
+          <SourceControlPanel
+            onSync={() => setIsGitHubModalOpen(true)}
+          />
+        )}
 
         <FileViewerPanel
           openTabs={openTabs}
