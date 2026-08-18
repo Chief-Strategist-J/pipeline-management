@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { X, GitBranch, Loader2, ExternalLink, ShieldCheck, CheckCircle2, AlertCircle, Database } from "lucide-react";
 import { pushToGitHubAction } from "../../state/file-explorer.slice";
-import { selectIsPushingGitHub, selectGithubPushResult } from "../../readModels/file-explorer.selectors";
+import { selectIsPushingGitHub, selectGithubPushResult, selectTreeData } from "../../readModels/file-explorer.selectors";
 
 export const GitHubIcon: React.FC<{ className?: string }> = ({ className = "h-4 w-4" }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
@@ -20,11 +20,12 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
 
   const isPushing = useSelector(selectIsPushingGitHub);
   const pushResult = useSelector(selectGithubPushResult);
+  const activeTreeData = useSelector(selectTreeData);
 
   const [token, setToken] = useState("");
   const [repoName, setRepoName] = useState("");
   const [branchName, setBranchName] = useState("main");
-  const [commitMessage, setCommitMessage] = useState("feat: sync template code tree from OpenVSCode IDE");
+  const [commitMessage, setCommitMessage] = useState("feat: sync selected architecture template tree from OpenVSCode IDE");
   const [isPrivate, setIsPrivate] = useState(false);
   const [loadedFromMongo, setLoadedFromMongo] = useState(false);
 
@@ -58,6 +59,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
         branchName: branchName.trim() || "main",
         commitMessage: commitMessage.trim(),
         isPrivate,
+        treeData: activeTreeData,
       })
     );
   };
@@ -68,7 +70,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
         <div className="h-12 bg-[#2d2d2d] px-4 border-b border-[#3c3c3c] flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-100 font-semibold text-sm">
             <GitHubIcon className="h-5 w-5 text-purple-400" />
-            <span>Push Code & Sync to GitHub Repository</span>
+            <span>Push Code & Sync Selected Template to GitHub</span>
           </div>
           <button
             type="button"
@@ -162,7 +164,7 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
                 Create Private Repo (if new)
               </label>
             </div>
-            <span className="text-purple-400">Saves token to MongoDB</span>
+            <span className="text-purple-400 font-semibold">Pushes active template tree</span>
           </div>
 
           {pushResult && (
@@ -212,12 +214,12 @@ export const GitHubPushModal: React.FC<GitHubPushModalProps> = ({ isOpen, onClos
               {isPushing ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Pushing & Saving Token...</span>
+                  <span>Pushing Active Template...</span>
                 </>
               ) : (
                 <>
                   <GitHubIcon className="h-3.5 w-3.5" />
-                  <span>Sync Code to GitHub</span>
+                  <span>Sync Selected Template Code</span>
                 </>
               )}
             </button>
