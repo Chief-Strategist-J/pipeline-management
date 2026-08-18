@@ -5,29 +5,42 @@ interface TreeItemNode {
   id: string;
   name: string;
   type: "file" | "folder";
-  path: string;
+  path?: string;
   content?: string;
   children?: TreeItemNode[];
 }
 
-function flattenTreeItems(nodes: TreeItemNode[] = [], parentPath = ""): Array<{ path: string; content: string }> {
-  let files: Array<{ path: string; content: string }> = [];
+function flattenTreeItems(nodes: TreeItemNode[] = []): Array<{ path: string; content: string }> {
+  let rawFiles: Array<{ path: string; content: string }> = [];
 
-  for (const node of nodes) {
-    const cleanName = node.name.replace(/\\/g, "/");
-    const currentPath = parentPath ? `${parentPath}/${cleanName}` : cleanName;
+  function recurse(items: TreeItemNode[], currentPath = "") {
+    for (const node of items) {
+      const cleanName = node.name.replace(/\\/g, "/");
+      const pathSegment = currentPath ? `${currentPath}/${cleanName}` : cleanName;
 
-    if (node.type === "file") {
-      files.push({
-        path: currentPath,
-        content: node.content || "",
-      });
-    } else if (node.type === "folder" && Array.isArray(node.children)) {
-      files = files.concat(flattenTreeItems(node.children, currentPath));
+      if (node.type === "file") {
+        rawFiles.push({
+          path: pathSegment,
+          content: node.content !== undefined ? node.content : "",
+        });
+      } else if (node.type === "folder" && Array.isArray(node.children)) {
+        recurse(node.children, pathSegment);
+      }
     }
   }
 
-  return files;
+  recurse(nodes);
+
+  if (nodes.length === 1 && nodes[0].type === "folder") {
+    const rootName = nodes[0].name.replace(/\\/g, "/");
+    const prefix = `${rootName}/`;
+    return rawFiles.map((f) => ({
+      path: f.path.startsWith(prefix) ? f.path.substring(prefix.length) : f.path,
+      content: f.content,
+    }));
+  }
+
+  return rawFiles;
 }
 
 export async function POST(req: Request) {
@@ -176,7 +189,7 @@ export async function POST(req: Request) {
     }
 
     const treeEntries = filesToCommit.map((f) => ({
-      path: f.path.startsWith("/") ? f.path.substring(1) : f.path,
+      path: f.path.replace(/^\/+/, ""),
       mode: "100644",
       type: "blob",
       content: f.content,
@@ -261,7 +274,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       repoUrl: `${repoUrl}/tree/${targetBranch}`,
-      message: `${actionText} Committed and pushed ${filesToCommit.length} files to branch '${targetBranch}' (Commit SHA: ${shortHash}). PAT Token saved to MongoDB.`,
+      message: `${actionText} Committed and pushed all ${filesToCommit.length} workspace files to branch '${targetBranch}' (Commit SHA: ${shortHash}). PAT Token saved to MongoDB.`,
     });
   } catch (err: any) {
     return NextResponse.json(
