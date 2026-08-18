@@ -6,10 +6,8 @@ import {
   detectBadgeKind,
   isFile,
 } from "../domain/entities/file-node.entity";
-import {
-  OPENVSCODE_PIPELINE_TEMPLATE,
-  PROJECT_TEMPLATES_CATALOG,
-} from "../domain/project-templates.catalog";
+import { OPENVSCODE_PIPELINE_TEMPLATE } from "../domain/templates/openvscode/openvscode-pipeline.template";
+import { PROJECT_TEMPLATES_CATALOG } from "../domain/project-templates.catalog";
 
 export interface FileExplorerState {
   isLaunched: boolean;
@@ -52,7 +50,9 @@ function collectAllFolderIds(nodes: TreeItem[]): string[] {
   for (const node of nodes) {
     if (node.type === "folder") {
       ids.push(node.id);
-      ids = ids.concat(collectAllFolderIds(node.children));
+      if (node.children && node.children.length > 0) {
+        ids = ids.concat(collectAllFolderIds(node.children));
+      }
     }
   }
   return ids;
@@ -60,8 +60,8 @@ function collectAllFolderIds(nodes: TreeItem[]): string[] {
 
 function findFirstFileNode(nodes: TreeItem[]): FileNode | null {
   for (const node of nodes) {
-    if (node.type === "file") return node;
-    if (node.type === "folder") {
+    if (isFile(node)) return node;
+    if (node.type === "folder" && node.children && node.children.length > 0) {
       const found = findFirstFileNode(node.children);
       if (found) return found;
     }
@@ -165,40 +165,35 @@ export const fileExplorerSlice = createSlice({
           state.openTabs = [];
           state.activeTabId = null;
         }
-
-        state.isServerRunning = false;
-        state.terminalLogs = [];
-        state.testResponse = null;
-        state.isSaving = false;
-        state.saveSuccessMessage = null;
-        state.isPushingGitHub = false;
-        state.githubPushResult = null;
       }
     },
 
     toggleExpandNode(state, action: PayloadAction<string>) {
-      const nodeId = action.payload;
-      if (state.expandedNodeIds.includes(nodeId)) {
-        state.expandedNodeIds = state.expandedNodeIds.filter((id) => id !== nodeId);
+      const id = action.payload;
+      const index = state.expandedNodeIds.indexOf(id);
+      if (index > -1) {
+        state.expandedNodeIds.splice(index, 1);
       } else {
-        state.expandedNodeIds.push(nodeId);
+        state.expandedNodeIds.push(id);
       }
     },
+
     expandAll(state) {
       state.expandedNodeIds = collectAllFolderIds(state.treeData);
     },
+
     collapseAll(state) {
       state.expandedNodeIds = [];
     },
 
     selectNode(state, action: PayloadAction<string>) {
-      const nodeId = action.payload;
-      state.selectedNodeId = nodeId;
+      const id = action.payload;
+      state.selectedNodeId = id;
 
-      const node = findNodeById(state.treeData, nodeId);
+      const node = findNodeById(state.treeData, id);
       if (node && isFile(node)) {
-        const existingTab = state.openTabs.find((t) => t.id === node.id);
-        if (!existingTab) {
+        const exists = state.openTabs.some((t) => t.id === node.id);
+        if (!exists) {
           state.openTabs.push({
             id: node.id,
             name: node.name,
@@ -229,21 +224,21 @@ export const fileExplorerSlice = createSlice({
       const newNode: TreeItem =
         type === "folder"
           ? {
-              id: `folder-${Date.now()}`,
+              id: `node-${Date.now()}`,
               name,
               type: "folder",
               path: newPath,
-              parentId: parentNode?.id || null,
+              parentId: targetParentId ?? null,
               badge,
               children: [],
               isExpanded: true,
             }
           : {
-              id: `file-${Date.now()}`,
+              id: `node-${Date.now()}`,
               name,
               type: "file",
               path: newPath,
-              parentId: parentNode?.id || null,
+              parentId: targetParentId ?? null,
               badge,
               content,
             };
@@ -257,35 +252,36 @@ export const fileExplorerSlice = createSlice({
         state.treeData.push(newNode);
       }
 
-      if (newNode.type === "file") {
+      if (type === "file") {
+        state.selectedNodeId = newNode.id;
         state.openTabs.push({
           id: newNode.id,
           name: newNode.name,
           path: newNode.path,
-          content: newNode.content,
+          content: (newNode as FileNode).content,
         });
         state.activeTabId = newNode.id;
-        state.selectedNodeId = newNode.id;
       }
     },
 
     deleteNode(state, action: PayloadAction<string>) {
       const id = action.payload;
       removeNodeRecursively(state.treeData, id);
+
       state.openTabs = state.openTabs.filter((t) => t.id !== id);
       if (state.activeTabId === id) {
-        state.activeTabId = state.openTabs[state.openTabs.length - 1]?.id || null;
+        state.activeTabId = state.openTabs[state.openTabs.length - 1]?.id ?? null;
       }
       if (state.selectedNodeId === id) {
-        state.selectedNodeId = null;
+        state.selectedNodeId = state.activeTabId;
       }
     },
 
     closeTab(state, action: PayloadAction<string>) {
-      const tabId = action.payload;
-      state.openTabs = state.openTabs.filter((t) => t.id !== tabId);
-      if (state.activeTabId === tabId) {
-        state.activeTabId = state.openTabs[state.openTabs.length - 1]?.id || null;
+      const id = action.payload;
+      state.openTabs = state.openTabs.filter((t) => t.id !== id);
+      if (state.activeTabId === id) {
+        state.activeTabId = state.openTabs[state.openTabs.length - 1]?.id ?? null;
       }
     },
 
@@ -320,21 +316,23 @@ export const fileExplorerSlice = createSlice({
     clearTerminalLogs(state) {
       state.terminalLogs = [];
     },
+
     setTestResponse(state, action: PayloadAction<string | null>) {
       state.testResponse = action.payload;
     },
-
     setIsSaving(state, action: PayloadAction<boolean>) {
       state.isSaving = action.payload;
     },
     setSaveSuccessMessage(state, action: PayloadAction<string | null>) {
       state.saveSuccessMessage = action.payload;
     },
-
     setIsPushingGitHub(state, action: PayloadAction<boolean>) {
       state.isPushingGitHub = action.payload;
     },
-    setGithubPushResult(state, action: PayloadAction<{ success: boolean; repoUrl?: string; message: string } | null>) {
+    setGithubPushResult(
+      state,
+      action: PayloadAction<{ success: boolean; repoUrl?: string; message: string } | null>
+    ) {
       state.githubPushResult = action.payload;
     },
 
